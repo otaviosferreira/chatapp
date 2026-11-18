@@ -80,8 +80,8 @@ Também foram criados:
 4. Configurar as variáveis de ambiente do Supabase no ambiente local/deploy; a chave publicável pode ficar no browser e qualquer chave secreta permanece exclusivamente no servidor.
 5. Executar testes positivos e negativos de RLS com usuários sintéticos: usuário ativo, usuário pendente, desabilitado, membro e não membro, admin e funcionário.
 6. Testar a RPC `create_conversation` com sessões autenticadas, incluindo direct_key duplicada, usuário inativo, participantes inválidos e limites de participantes.
-7. Testar ponta a ponta a interface inicial de conversas, envio de mensagens, paginação/histórico e sincronização Realtime; implementar receipts visuais.
-8. Implementar gestão de grupos pela interface, busca, notificações e painel de TI.
+7. Testar ponta a ponta a interface inicial de conversas, envio de mensagens, criação de grupos e sincronização Realtime; implementar paginação/histórico e receipts visuais.
+8. Implementar gestão posterior de membros de grupo, busca, notificações e painel de TI.
 9. Implementar scanner antimalware e validar assinatura real do arquivo antes de disponibilizar download.
 10. Revisar políticas de retenção, auditoria, exportação independente e limites de recursos do plano Free.
 
@@ -92,9 +92,10 @@ Implementado no branch `feat/foundation-scaffold`:
 - Diretório mínimo de funcionários ativos e início de conversa individual via RPC.
 - Envio de mensagens com `client_message_id` para idempotência e limite de 4.000 caracteres.
 - Listener Realtime para INSERT em `public.messages`; eventos são deduplicados na interface.
+- Formulário de criação de grupos privados com título e seleção múltipla de 1 a 49 participantes, conectado à RPC.
 - Tela protegida exige JWT verificado e perfil `active`.
 
-Verificação CI do commit `dc6f320119042598e8c30685d4327c5813ff50a9`: lint, typecheck e build de produção concluídos com sucesso. O workflow gerou e comitou `package-lock.json` em commit posterior. Isso valida compilação, não substitui testes de integração com Supabase Auth.
+Verificação CI do commit `ffc426c1df42c712e7f4b79ded9e2845d053b8f6`: lint, typecheck e build de produção concluídos com sucesso. `package-lock.json` está versionado. Isso valida compilação, não substitui testes de integração com Supabase Auth.
 
 ## Critério de conclusão
 
