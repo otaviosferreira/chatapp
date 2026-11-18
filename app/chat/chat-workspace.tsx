@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
@@ -43,7 +43,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
 
-  async function markMessagesRead(items: Message[]) {
+  const markMessagesRead = useCallback(async (items: Message[]) => {
     const incoming = items.filter((item) => item.sender_id !== userId);
     if (incoming.length === 0) return;
     const now = new Date().toISOString();
@@ -64,9 +64,9 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       ...current.filter((receipt) => !incoming.some((item) => item.id === receipt.message_id && receipt.profile_id === userId)),
       ...data
     ]);
-  }
+  }, [supabase, userId]);
 
-  async function refreshUnreadCounts() {
+  const refreshUnreadCounts = useCallback(async () => {
     const ids = conversations.map((item) => item.id);
     if (ids.length === 0) { setUnreadCounts({}); return; }
     const { data: recentMessages, error } = await supabase.from("messages")
@@ -82,7 +82,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     const counts: Record<string, number> = {};
     for (const item of recentMessages) if (!readSet.has(item.id)) counts[item.conversation_id] = (counts[item.conversation_id] ?? 0) + 1;
     setUnreadCounts(counts);
-  }
+  }, [conversations, supabase, userId]);
 
   async function requestNotifications() {
     if (!("Notification" in window)) return;
@@ -233,9 +233,9 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [supabase, selectedConversationId, userId, conversations]);
+  }, [supabase, selectedConversationId, userId, conversations, markMessagesRead, refreshUnreadCounts]);
 
-  useEffect(() => { void refreshUnreadCounts(); }, [conversations, selectedConversationId]);
+  useEffect(() => { void Promise.resolve().then(refreshUnreadCounts); }, [refreshUnreadCounts, selectedConversationId]);
 
   useEffect(() => {
     if (conversations.length === 0) return;
@@ -255,7 +255,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [supabase, conversations, selectedConversationId, userId]);
+  }, [supabase, conversations, selectedConversationId, userId, refreshUnreadCounts]);
 
   useEffect(() => {
     const conversationId = selectedConversationId ?? "";
