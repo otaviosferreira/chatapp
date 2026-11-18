@@ -2,6 +2,10 @@
 
 Aplicação web de comunicação privada em desenvolvimento. O projeto utiliza exclusivamente dados fictícios e não está autorizado para uso corporativo real.
 
+## Diagnóstico inicial
+
+Consulte [`docs/DIAGNOSTICO-ESTADO-2026-11-18.md`](docs/DIAGNOSTICO-ESTADO-2026-11-18.md) para o retrato do repositório, backlog, limitações de validação e próximas etapas.
+
 ## Estado atual
 
 - Documentação de arquitetura: `docs/ARQUITETURA-TECNICA.md`.
