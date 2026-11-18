@@ -20,7 +20,7 @@ Aplicação web de comunicação privada em desenvolvimento. O projeto utiliza e
 
 ## Requisitos
 
-- Node.js 20.19.0 ou superior.
+- Node.js 22.0.0 ou superior.
 - npm 10 ou compatível.
 
 ## Instalação
