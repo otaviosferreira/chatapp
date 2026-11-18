@@ -16,7 +16,7 @@ Aplicação web de comunicação privada em desenvolvimento. O projeto utiliza e
 - Schema inicial aplicado e versionado em `supabase/migrations/`.
 - RLS aplicada nas tabelas públicas; buckets privados e publicação Realtime de mensagens configurados.
 - Autenticação SSR inicial, login/logout, rota protegida e workspace de conversas individuais e criação de grupos privados, com envio de mensagens e listener Realtime implementados no código.
-- Provisionamento de contas/primeiro administrador, gestão posterior de membros, scanner de anexos e testes autenticados ainda pendentes.
+- Provisionamento de contas/primeiro administrador, scanner de anexos e testes autenticados ainda pendentes; gestão de membros de grupo está disponível para owner/admin.
 - CI valida lint, TypeScript e build; consulte GitHub Actions para o resultado do commit mais recente.
 
 ## Requisitos

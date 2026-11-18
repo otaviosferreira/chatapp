@@ -20,6 +20,8 @@
 | `20261118203939` | `expose_minimal_active_employee_directory` | Concede leitura de colunas mínimas do diretório e não expõe e-mails corporativos |
 | `20261118204036` | `combine_profile_directory_select_policy` | Consolida regras de leitura de perfil em uma única política RLS |
 | `20261118204056` | `enforce_direct_and_group_membership_limits` | Valida direct_key canônica, limita conversas diretas a 2 participantes e grupos a 50 |
+| `20261118204620` | `audit_group_member_removal` | Permite gestão de participantes em grupos e registra remoções na auditoria privada |
+| `20261118204658` | `combine_conversation_member_update_policy` | Consolida regras de saída/remoção de membros em uma política RLS de UPDATE |
 
 ## Estrutura criada
 
@@ -49,6 +51,7 @@ Também foram criados:
 - RPC `public.create_conversation` (SECURITY INVOKER), com validação de conta ativa, limite de participantes, deduplicação de participantes e chave canônica para conversa direta. O caminho recomendado no cliente é chamar esta RPC.
 - Diretório mínimo de funcionários: leitura limitada a `id`, `full_name`, `status` e `avatar_path`; `corporate_email` não tem privilégio SELECT para usuários autenticados comuns.
 - Trigger valida a chave canônica de conversas diretas; trigger serializado limita conversa direta a 2 pessoas e grupo a 50 participantes.
+- Owners/admins de grupo podem adicionar/remover outros membros; cada remoção é registrada em `private.audit_logs`. Usuários podem sair da conversa por política RLS, embora o botão de saída ainda não esteja na interface.
 
 ## Storage e restrições atuais
 
@@ -62,7 +65,7 @@ Também foram criados:
 ## Verificações executadas
 
 - Projeto: `ACTIVE_HEALTHY`.
-- Migrations: 8 registradas no Supabase e versionadas no repositório.
+- Migrations: 10 registradas no Supabase; 8 primeiras já sincronizadas e as 2 últimas em processo de sincronização com o repositório.
 - Tabelas: 9 públicas e 2 privadas.
 - RLS: habilitada em todas as tabelas públicas; sem tabela pública sem RLS.
 - Políticas: 18 públicas e 2 privadas na última inspeção.
@@ -70,7 +73,7 @@ Também foram criados:
 - Realtime: `public.messages` confirmada na publicação.
 - Supabase Security Advisor: sem findings na última execução.
 - Supabase Health Advisor: sem findings na última execução.
-- Performance Advisor: somente índices ainda não utilizados em banco vazio; revisar após dados e consultas de teste.
+- Performance Advisor: sem alertas WARN após consolidar políticas; restam 16 avisos INFO de índices ainda não utilizados em banco vazio, a revisar após dados e consultas de teste.
 
 ## Pendências obrigatórias antes de autenticação/uso funcional
 
@@ -80,8 +83,8 @@ Também foram criados:
 4. Configurar as variáveis de ambiente do Supabase no ambiente local/deploy; a chave publicável pode ficar no browser e qualquer chave secreta permanece exclusivamente no servidor.
 5. Executar testes positivos e negativos de RLS com usuários sintéticos: usuário ativo, usuário pendente, desabilitado, membro e não membro, admin e funcionário.
 6. Testar a RPC `create_conversation` com sessões autenticadas, incluindo direct_key duplicada, usuário inativo, participantes inválidos e limites de participantes.
-7. Testar ponta a ponta a interface inicial de conversas, envio de mensagens, criação de grupos e sincronização Realtime; implementar paginação/histórico e receipts visuais.
-8. Implementar gestão posterior de membros de grupo, busca, notificações e painel de TI.
+7. Testar ponta a ponta a interface inicial de conversas, envio de mensagens, criação/gestão de grupos e sincronização Realtime; implementar paginação/histórico, botão de saída e receipts visuais.
+8. Implementar busca, notificações e painel de TI.
 9. Implementar scanner antimalware e validar assinatura real do arquivo antes de disponibilizar download.
 10. Revisar políticas de retenção, auditoria, exportação independente e limites de recursos do plano Free.
 
@@ -93,9 +96,10 @@ Implementado no branch `feat/foundation-scaffold`:
 - Envio de mensagens com `client_message_id` para idempotência e limite de 4.000 caracteres.
 - Listener Realtime para INSERT em `public.messages`; eventos são deduplicados na interface.
 - Formulário de criação de grupos privados com título e seleção múltipla de 1 a 49 participantes, conectado à RPC.
+- Owner/admin consegue adicionar e remover participantes de grupos; remoções geram auditoria privada.
 - Tela protegida exige JWT verificado e perfil `active`.
 
-Verificação CI do commit `ffc426c1df42c712e7f4b79ded9e2845d053b8f6`: lint, typecheck e build de produção concluídos com sucesso. `package-lock.json` está versionado. Isso valida compilação, não substitui testes de integração com Supabase Auth.
+Verificação CI do commit `342495d1dd2fa9e09083d2be6a79e43cfdc91b75`: lint, typecheck e build de produção concluídos com sucesso. `package-lock.json` está versionado. Isso valida compilação, não substitui testes de integração com Supabase Auth.
 
 ## Critério de conclusão
 
