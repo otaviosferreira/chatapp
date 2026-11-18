@@ -36,6 +36,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -190,8 +191,9 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     }
 
     setSearching(true);
+    setHasSearched(true);
     setErrorMessage(null);
-    const escapedTerm = term.replace(/[\\%_]/g, "\\  async function sendMessage(event: FormEvent<HTMLFormElement>) {");
+    const escapedTerm = term.replace(/[%_]/g, "\\    const escapedTerm = term.replace(/[\\%_]/g, "\\  async function sendMessage(event: FormEvent<HTMLFormElement>) {");");
     const { data, error } = await supabase
       .from("messages")
       .select("id,conversation_id,sender_id,client_message_id,body,reply_to_id,created_at")
@@ -396,7 +398,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
             <input
               id="message-search"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => { setSearchTerm(event.target.value); setHasSearched(false); }}
               minLength={2}
               maxLength={120}
               placeholder="Buscar em suas conversas"
@@ -429,7 +431,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
                 );
               })}
             </div>
-          ) : searchTerm.trim().length >= 2 && !searching ? (
+          ) : hasSearched && searchTerm.trim().length >= 2 && !searching ? (
             <p className="text-xs text-slate-500">Sem resultados para a última pesquisa.</p>
           ) : null}
         </form>
