@@ -90,10 +90,6 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   }
 
   useEffect(() => {
-    if ("Notification" in window) setNotificationPermission(Notification.permission);
-  }, []);
-
-  useEffect(() => {
     let active = true;
 
     async function loadWorkspace() {
