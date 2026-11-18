@@ -23,10 +23,14 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [newParticipantId, setNewParticipantId] = useState("");
   const [groupTitle, setGroupTitle] = useState("");
   const [groupMemberIds, setGroupMemberIds] = useState<string[]>([]);
+  const [activeMemberIds, setActiveMemberIds] = useState<string[]>([]);
+  const [myMemberRole, setMyMemberRole] = useState<string | null>(null);
+  const [newGroupMemberId, setNewGroupMemberId] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [updatingMembers, setUpdatingMembers] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState("connecting");
 
@@ -144,6 +148,33 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     };
   }, [supabase, selectedConversationId]);
 
+  useEffect(() => {
+    const conversationId = selectedConversationId ?? "";
+    if (!conversationId) return;
+
+    let active = true;
+    async function loadMembers() {
+      const { data, error } = await supabase
+        .from("conversation_members")
+        .select("profile_id,member_role")
+        .eq("conversation_id", conversationId)
+        .is("left_at", null);
+
+      if (!active) return;
+      if (error) {
+        setErrorMessage("Não foi possível carregar os participantes desta conversa.");
+        return;
+      }
+      setActiveMemberIds(data.map((member) => member.profile_id));
+      setMyMemberRole(data.find((member) => member.profile_id === userId)?.member_role ?? null);
+    }
+
+    void loadMembers();
+    return () => {
+      active = false;
+    };
+  }, [supabase, selectedConversationId, userId]);
+
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.trim();
@@ -210,6 +241,47 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     }
 
     setCreating(false);
+  }
+
+  async function addGroupMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedConversationId || !newGroupMemberId || updatingMembers || (myMemberRole !== "owner" && myMemberRole !== "admin")) return;
+
+    setUpdatingMembers(true);
+    setErrorMessage(null);
+    const { error } = await supabase.from("conversation_members").insert({
+      conversation_id: selectedConversationId,
+      profile_id: newGroupMemberId,
+      member_role: "member",
+      added_by: userId
+    });
+
+    if (error) {
+      setErrorMessage("Não foi possível adicionar o participante. Verifique suas permissões.");
+    } else {
+      setActiveMemberIds((current) => [...new Set([...current, newGroupMemberId])]);
+      setNewGroupMemberId("");
+    }
+    setUpdatingMembers(false);
+  }
+
+  async function removeGroupMember(profileId: string) {
+    if (!selectedConversationId || profileId === userId || updatingMembers || (myMemberRole !== "owner" && myMemberRole !== "admin")) return;
+
+    setUpdatingMembers(true);
+    setErrorMessage(null);
+    const { error } = await supabase
+      .from("conversation_members")
+      .update({ left_at: new Date().toISOString() })
+      .eq("conversation_id", selectedConversationId)
+      .eq("profile_id", profileId);
+
+    if (error) {
+      setErrorMessage("Não foi possível remover o participante. Verifique suas permissões.");
+    } else {
+      setActiveMemberIds((current) => current.filter((id) => id !== profileId));
+    }
+    setUpdatingMembers(false);
   }
 
   async function createGroupConversation(event: FormEvent<HTMLFormElement>) {
@@ -362,6 +434,58 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
           <p role="alert" className="mx-5 mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {errorMessage}
           </p>
+        ) : null}
+
+        {selectedConversation?.type === "group" ? (
+          <div className="border-b border-slate-200 bg-white px-5 py-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Participantes ativos ({activeMemberIds.length})
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {activeMemberIds.map((memberId) => {
+                const memberName = memberId === userId
+                  ? userName
+                  : directory.find((person) => person.id === memberId)?.full_name ?? "Funcionário";
+                return (
+                  <span key={memberId} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                    {memberName}
+                    {(myMemberRole === "owner" || myMemberRole === "admin") && memberId !== userId ? (
+                      <button
+                        type="button"
+                        disabled={updatingMembers}
+                        onClick={() => void removeGroupMember(memberId)}
+                        className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+                        aria-label={`Remover ${memberName} do grupo`}
+                      >
+                        Remover
+                      </button>
+                    ) : null}
+                  </span>
+                );
+              })}
+            </div>
+            {(myMemberRole === "owner" || myMemberRole === "admin") ? (
+              <form onSubmit={addGroupMember} className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <select
+                  value={newGroupMemberId}
+                  onChange={(event) => setNewGroupMemberId(event.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Adicionar funcionário ativo</option>
+                  {directory.filter((person) => !activeMemberIds.includes(person.id)).map((person) => (
+                    <option key={person.id} value={person.id}>{person.full_name}</option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={!newGroupMemberId || updatingMembers}
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
+                >
+                  {updatingMembers ? "Salvando..." : "Adicionar"}
+                </button>
+              </form>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-5">
