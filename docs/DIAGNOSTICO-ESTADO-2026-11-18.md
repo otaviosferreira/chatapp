@@ -88,3 +88,14 @@ Não há evidência para declarar qualquer módulo funcional concluído.
 ## Segurança
 
 O ambiente permanece exclusivamente de desenvolvimento/demonstração. Não usar dados pessoais, documentos ou credenciais reais da Calunga. Não publicar em produção nem habilitar anexos sem os controles descritos na arquitetura.
+
+
+## Atualização após o diagnóstico — fundação do PR #82
+
+- Framework ajustado para Next.js 16.4.6 (linha Active LTS consultada em 18/11/2026) e React/React DOM 19.3.1.
+- Lint ajustado para ESLint 10.15.0 com flat config, pois Next.js 16 removeu next lint.
+- Node.js mínimo documentado: 20.19.0.
+- Tailwind CSS permanece na linha 3.4.17 para manter a configuração inicial simples e compatível.
+- O lockfile ainda não foi gerado; as dependências ainda precisam ser instaladas e validadas em ambiente com acesso ao registry npm.
+- A conexão Supabase não lista projetos. Nenhuma migration foi aplicada ou criada para um projeto remoto; seguir com migrations exige projeto/ambiente local Supabase disponível e geração pelo CLI.
+- Build, lint e typecheck continuam pendentes, sem alegação de aprovação.
