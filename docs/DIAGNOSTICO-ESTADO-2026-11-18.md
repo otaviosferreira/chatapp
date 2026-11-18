@@ -99,3 +99,26 @@ O ambiente permanece exclusivamente de desenvolvimento/demonstração. Não usar
 - O lockfile ainda não foi gerado; as dependências ainda precisam ser instaladas e validadas em ambiente com acesso ao registry npm.
 - A conexão Supabase não lista projetos. Nenhuma migration foi aplicada ou criada para um projeto remoto; seguir com migrations exige projeto/ambiente local Supabase disponível e geração pelo CLI.
 - Build, lint e typecheck continuam pendentes, sem alegação de aprovação.
+
+
+## Atualização de execução — 18/11/2026, 19h (BRT)
+
+Esta seção prevalece sobre os trechos históricos acima que descrevem ausência de Supabase, ausência de implementação ou CI pendente.
+
+- Repositório: `otaviosferreira/chatapp`; branch `feat/foundation-scaffold`; PR draft #82.
+- Supabase Free de desenvolvimento: projeto `chatapp-dev`, região São Paulo, uso exclusivo com dados sintéticos.
+- Backend: schema com RLS, Storage privado e Realtime; painel de TI; RPCs para ativar/desativar perfis, administrar papéis e auditar convites; Edge Function `invite-employee` implantada com JWT obrigatório, papel `it_admin` e allowlist `ALLOWED_EMAIL_DOMAINS`.
+- Conta de bootstrap verificada: um perfil ativo com papel `it_admin`.
+- Frontend: login/logout, conversas diretas e grupos privados, envio de mensagens, Realtime, gestão de membros, pesquisa de mensagens, recibos de leitura, contadores de não lidas, notificações do navegador em primeiro plano/aba oculta e paginação do histórico.
+- CI #123 (busca) aprovado. CI #134 (recibos, notificações e paginação) ainda está em fila/execução nesta atualização; não declarar aprovação até conclusão.
+- Migration adicional `20261118221000_enable_message_receipts_realtime.sql` aplicada ao Supabase e versionada no repositório.
+- Segurança: Security Advisor aponta apenas proteção contra senhas vazadas desativada; Health Advisor sem findings. A configuração de allowlist e Redirect URLs deve ser confirmada no ambiente antes de convites reais.
+- Não foram executados convites reais nem testes E2E com duas contas independentes. Não há deploy frontend em produção e a PR não foi mesclada.
+
+### Pendências restantes
+
+1. Testes SQA ponta a ponta com pelo menos duas contas sintéticas: convite, domínio permitido/negado, ativação, desativação, papéis, conversas privadas, RLS, recibos e auditoria.
+2. Confirmar Site URL/Redirect URLs do Supabase Auth e o valor do secret `ALLOWED_EMAIL_DOMAINS` (o valor do secret não é legível pela integração).
+3. Scanner antimalware real e pipeline de quarentena/liberação de anexos. Não liberar downloads antes disso.
+4. Revisar limites do plano Free, retenção e comportamento de notificações; notificações atuais são do navegador, sem push server-side garantido.
+5. Revisão de segurança final, testes de regressão e aprovação humana antes de merge/deploy.
