@@ -22,8 +22,6 @@
 | `20261118204056` | `enforce_direct_and_group_membership_limits` | Valida direct_key canônica, limita conversas diretas a 2 participantes e grupos a 50 |
 | `20261118204620` | `audit_group_member_removal` | Permite gestão de participantes em grupos e registra remoções na auditoria privada |
 | `20261118204658` | `combine_conversation_member_update_policy` | Consolida regras de saída/remoção de membros em uma política RLS de UPDATE |
-| `20261118204620` | `audit_group_member_removal` | Permite gestão de participantes em grupos e registra remoções na auditoria privada |
-| `20261118204658` | `combine_conversation_member_update_policy` | Consolida regras de saída/remoção de membros em uma política RLS de UPDATE |
 
 ## Estrutura criada
 
