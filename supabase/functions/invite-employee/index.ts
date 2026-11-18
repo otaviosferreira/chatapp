@@ -1,4 +1,4 @@
-import { withSupabase } from "npm:@supabase/server@1";
+import { createSupabaseContext } from "npm:@supabase/server@1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,10 +14,13 @@ function json(body: Record<string, unknown>, status = 200) {
 }
 
 export default {
-  fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
+  fetch: async (req: Request) => {
     if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
     if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-    const actorId = ctx.userClaims?.sub;
+
+    const { data: ctx, error: authError } = await createSupabaseContext(req, { auth: "user" });
+    if (authError) return json({ error: authError.message }, authError.status);
+    const actorId = ctx.userClaims?.id;
     if (!actorId) return json({ error: "unauthorized" }, 401);
 
     const { data: profile, error: profileError } = await ctx.supabase
@@ -32,22 +35,26 @@ export default {
     try { payload = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
     const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
     const fullName = typeof payload.full_name === "string" ? payload.full_name.trim() : "";
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || fullName.length < 2 || fullName.length > 120) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || fullName.length < 2 || fullName.length > 120) {
       return json({ error: "invalid_input" }, 400);
     }
+
     const allowedDomains = (Deno.env.get("ALLOWED_EMAIL_DOMAINS") ?? "")
       .split(",").map((domain) => domain.trim().toLowerCase()).filter(Boolean);
     if (allowedDomains.length === 0) return json({ error: "domain_allowlist_not_configured" }, 503);
     const domain = email.split("@")[1];
     if (!allowedDomains.includes(domain)) return json({ error: "email_domain_not_allowed" }, 422);
 
-    const { data, error } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, { data: { full_name: fullName } });
+    const { data, error } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName },
+    });
     if (error || !data.user) return json({ error: "invite_failed" }, 400);
+
     const { error: auditError } = await ctx.supabase.rpc("admin_record_invitation", {
       _invited_profile_id: data.user.id,
       _email_domain: domain,
     });
     if (auditError) return json({ error: "audit_write_failed" }, 500);
     return json({ ok: true, profile_id: data.user.id });
-  }),
+  },
 };
