@@ -3,6 +3,8 @@ import { signOutAction } from "@/app/actions/auth";
 import { AdminWorkspace } from "@/app/admin/admin-workspace";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
  const supabase=await createClient();
  const {data:claims,error:claimsError}=await supabase.auth.getClaims();
