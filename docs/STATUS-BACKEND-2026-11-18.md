@@ -15,6 +15,8 @@
 | `20261118203212` | `initial_chat_schema_rls_storage` | Schema inicial, tabelas, funções auxiliares, triggers, políticas RLS e buckets |
 | `20261118203243` | `tighten_membership_and_audit_access` | Restringe atribuição de papéis de grupo, adiciona saída de membros, políticas deny-by-default para auditoria e índices |
 | `20261118203300` | `enable_message_realtime_and_dedupe_policy` | Remove política redundante e adiciona `public.messages` à publicação Realtime |
+| `20261118203538` | `add_transactional_conversation_creation` | Adiciona RPC `create_conversation` com validação de participantes, direct_key canônica e criação de membros |
+| `20261118203551` | `restore_rls_guarded_conversation_insert_grants` | Mantém a RPC como caminho recomendado e restaura permissões de INSERT ainda protegidas por RLS |
 
 ## Estrutura criada
 
@@ -41,6 +43,7 @@ Também foram criados:
 - Funções auxiliares de autorização em schema privado.
 - RLS em todas as tabelas públicas e privadas.
 - Publicação `supabase_realtime` para a tabela `messages`.
+- RPC `public.create_conversation` (SECURITY INVOKER), com validação de conta ativa, limite de participantes, deduplicação de participantes e chave canônica para conversa direta. O caminho recomendado no cliente é chamar esta RPC.
 
 ## Storage e restrições atuais
 
@@ -71,7 +74,7 @@ Também foram criados:
 3. Implementar fluxo server-side de convite/criação de usuários, atribuição de papel, ativação e desativação/revogação de sessão.
 4. Integrar Auth no Next.js usando somente chave publicável no browser e chave secreta exclusivamente no servidor.
 5. Executar testes positivos e negativos de RLS com usuários sintéticos: usuário ativo, usuário pendente, desabilitado, membro e não membro, admin e funcionário.
-6. Implementar RPC/rotas transacionais para criar conversa e membros, validar `direct_key` e impedir duplicidade de conversas diretas.
+6. Integrar e testar a RPC `create_conversation` com sessões autenticadas, incluindo casos de direct_key duplicada, usuário inativo e participantes inválidos.
 7. Implementar persistência de mensagens, receipts e sincronização Realtime na interface.
 8. Implementar scanner antimalware e validar assinatura real do arquivo antes de disponibilizar download.
 9. Revisar políticas de retenção, auditoria, exportação independente e limites de recursos do plano Free.
