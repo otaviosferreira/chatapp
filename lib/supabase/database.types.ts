@@ -404,6 +404,23 @@ export type Database = {
         }
         Returns: string
       }
+      admin_set_profile_status: {
+        Args: {
+          _profile_id: string
+          _status: Database["public"]["Enums"]["profile_status"]
+          _reason: string
+        }
+        Returns: undefined
+      }
+      admin_set_profile_role: {
+        Args: {
+          _profile_id: string
+          _role_code: string
+          _grant: boolean
+          _reason: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       conversation_type: "direct" | "group"
