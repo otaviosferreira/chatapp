@@ -235,6 +235,26 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   useEffect(() => { void refreshUnreadCounts(); }, [conversations, selectedConversationId]);
 
   useEffect(() => {
+    if (conversations.length === 0) return;
+    const conversationIds = new Set(conversations.map((item) => item.id));
+    const channel = supabase.channel("user-conversation-notifications")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const incoming = payload.new as Message;
+        if (incoming.sender_id === userId || !conversationIds.has(incoming.conversation_id) || incoming.conversation_id === selectedConversationId) return;
+        void refreshUnreadCounts();
+        if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+          const conversation = conversations.find((item) => item.id === incoming.conversation_id);
+          new Notification(conversation?.title ?? "Nova mensagem", {
+            body: incoming.body.slice(0, 140),
+            tag: incoming.id
+          });
+        }
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [supabase, conversations, selectedConversationId, userId]);
+
+  useEffect(() => {
     const conversationId = selectedConversationId ?? "";
     if (!conversationId) return;
 
