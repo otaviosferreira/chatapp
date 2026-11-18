@@ -37,6 +37,59 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [receipts, setReceipts] = useState<Tables<"message_receipts">[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+
+  async function markMessagesRead(items: Message[]) {
+    const incoming = items.filter((item) => item.sender_id !== userId);
+    if (incoming.length === 0) return;
+    const now = new Date().toISOString();
+    const rows = incoming.map((item) => ({
+      message_id: item.id, profile_id: userId, delivered_at: now, read_at: now
+    }));
+    const { error } = await supabase.from("message_receipts").upsert(rows, {
+      onConflict: "message_id,profile_id", ignoreDuplicates: false
+    });
+    if (error) {
+      setErrorMessage("Não foi possível atualizar as confirmações de leitura.");
+      return;
+    }
+    const { data } = await supabase.from("message_receipts")
+      .select("message_id,profile_id,delivered_at,read_at")
+      .in("message_id", incoming.map((item) => item.id));
+    if (data) setReceipts((current) => [
+      ...current.filter((receipt) => !incoming.some((item) => item.id === receipt.message_id && receipt.profile_id === userId)),
+      ...data
+    ]);
+  }
+
+  async function refreshUnreadCounts() {
+    const ids = conversations.map((item) => item.id);
+    if (ids.length === 0) { setUnreadCounts({}); return; }
+    const { data: recentMessages, error } = await supabase.from("messages")
+      .select("id,conversation_id,sender_id,client_message_id,body,reply_to_id,created_at")
+      .in("conversation_id", ids).neq("sender_id", userId)
+      .order("created_at", { ascending: false }).limit(500);
+    if (error || !recentMessages) return;
+    const messageIds = recentMessages.map((item) => item.id);
+    const { data: readReceipts } = messageIds.length
+      ? await supabase.from("message_receipts").select("message_id,read_at").eq("profile_id", userId).in("message_id", messageIds)
+      : { data: [] as Pick<Tables<"message_receipts">, "message_id" | "read_at">[] };
+    const readSet = new Set((readReceipts ?? []).filter((item) => item.read_at).map((item) => item.message_id));
+    const counts: Record<string, number> = {};
+    for (const item of recentMessages) if (!readSet.has(item.id)) counts[item.conversation_id] = (counts[item.conversation_id] ?? 0) + 1;
+    setUnreadCounts(counts);
+  }
+
+  async function requestNotifications() {
+    if (!("Notification" in window)) return;
+    setNotificationPermission(await Notification.requestPermission());
+  }
+
+  useEffect(() => {
+    if ("Notification" in window) setNotificationPermission(Notification.permission);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -122,6 +175,14 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
               ? current
               : [...current, incoming].sort((a, b) => a.created_at.localeCompare(b.created_at))
           );
+          if (incoming.sender_id !== userId) {
+            void markMessagesRead([incoming]);
+            if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+              const conversation = conversations.find((item) => item.id === activeConversationId);
+              new Notification(conversation?.title ?? "Nova mensagem", { body: incoming.body.slice(0, 140), tag: incoming.id });
+            }
+          }
+          void refreshUnreadCounts();
         }
       )
       .subscribe((status) => {
@@ -142,6 +203,8 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
         return;
       }
       setMessages(data ?? []);
+      await markMessagesRead(data ?? []);
+      await refreshUnreadCounts();
     }
 
     void loadMessages();
@@ -150,7 +213,9 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [supabase, selectedConversationId]);
+  }, [supabase, selectedConversationId, userId, conversations]);
+
+  useEffect(() => { void refreshUnreadCounts(); }, [conversations, selectedConversationId]);
 
   useEffect(() => {
     const conversationId = selectedConversationId ?? "";
@@ -512,8 +577,11 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
                 <span className="block truncate text-sm font-semibold text-slate-900">
                   {conversation.title ?? "Conversa individual"}
                 </span>
-                <span className="mt-1 block text-xs text-slate-500">
-                  {conversation.type === "group" ? "Grupo privado" : "Conversa privada"}
+                <span className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-500">
+                  <span>{conversation.type === "group" ? "Grupo privado" : "Conversa privada"}</span>
+                  {(unreadCounts[conversation.id] ?? 0) > 0 ? (
+                    <span className="rounded-full bg-blue-700 px-2 py-0.5 text-[10px] font-semibold text-white">{unreadCounts[conversation.id]}</span>
+                  ) : null}
                 </span>
               </button>
             ))
@@ -531,7 +599,12 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
               Sincronização: {selectedConversationId ? (realtimeStatus === "subscribed" ? "conectada" : realtimeStatus) : "desconectada"}
             </p>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{userName}</span>
+          <div className="flex items-center gap-2">
+            {notificationPermission !== "granted" ? (
+              <button type="button" onClick={() => void requestNotifications()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Ativar notificações</button>
+            ) : <span className="text-[10px] text-emerald-700">Notificações ativadas</span>}
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{userName}</span>
+          </div>
         </header>
 
         {errorMessage ? (
@@ -618,9 +691,10 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
                 <article key={message.id} className={`flex ${ownMessage ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[min(80%,42rem)] rounded-2xl px-4 py-3 shadow-sm ${ownMessage ? "bg-blue-700 text-white" : "border border-slate-200 bg-white text-slate-900"}`}>
                     <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>
-                    <time className={`mt-2 block text-right text-[10px] ${ownMessage ? "text-blue-100" : "text-slate-400"}`}>
-                      {new Date(message.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                    </time>
+                    <div className={`mt-2 flex items-center justify-end gap-2 text-[10px] ${ownMessage ? "text-blue-100" : "text-slate-400"}`}>
+                      <time>{new Date(message.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</time>
+                      {ownMessage ? <span>{receipts.some((receipt) => receipt.message_id === message.id && receipt.read_at) ? "✓✓ Lida" : "✓ Enviada"}</span> : null}
+                    </div>
                   </div>
                 </article>
               );
