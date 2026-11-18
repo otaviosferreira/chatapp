@@ -22,6 +22,8 @@
 | `20261118204056` | `enforce_direct_and_group_membership_limits` | Valida direct_key canônica, limita conversas diretas a 2 participantes e grupos a 50 |
 | `20261118204620` | `audit_group_member_removal` | Permite gestão de participantes em grupos e registra remoções na auditoria privada |
 | `20261118204658` | `combine_conversation_member_update_policy` | Consolida regras de saída/remoção de membros em uma política RLS de UPDATE |
+| `20261118204620` | `audit_group_member_removal` | Permite gestão de participantes em grupos e registra remoções na auditoria privada |
+| `20261118204658` | `combine_conversation_member_update_policy` | Consolida regras de saída/remoção de membros em uma política RLS de UPDATE |
 
 ## Estrutura criada
 
@@ -65,7 +67,7 @@ Também foram criados:
 ## Verificações executadas
 
 - Projeto: `ACTIVE_HEALTHY`.
-- Migrations: 10 registradas no Supabase; 8 primeiras já sincronizadas e as 2 últimas em processo de sincronização com o repositório.
+- Migrations: 10 registradas no Supabase e versionadas no repositório.
 - Tabelas: 9 públicas e 2 privadas.
 - RLS: habilitada em todas as tabelas públicas; sem tabela pública sem RLS.
 - Políticas: 18 públicas e 2 privadas na última inspeção.
@@ -99,7 +101,7 @@ Implementado no branch `feat/foundation-scaffold`:
 - Owner/admin consegue adicionar e remover participantes de grupos; remoções geram auditoria privada.
 - Tela protegida exige JWT verificado e perfil `active`.
 
-Verificação CI do commit `342495d1dd2fa9e09083d2be6a79e43cfdc91b75`: lint, typecheck e build de produção concluídos com sucesso. `package-lock.json` está versionado. Isso valida compilação, não substitui testes de integração com Supabase Auth.
+Verificação CI do commit `764f7f97c87df86e97b84c94114cdb0059c063bb`: lint, typecheck e build de produção concluídos com sucesso. `package-lock.json` está versionado. Isso valida compilação, não substitui testes de integração com Supabase Auth.
 
 ## Critério de conclusão
 
