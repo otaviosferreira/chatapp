@@ -118,3 +118,36 @@ Implementado no branch `feat/foundation-scaffold`:
 - Sem variáveis configuradas, a aplicação mostra orientação de configuração em vez de tentar autenticar.
 
 **Ainda não validado em runtime:** variáveis de ambiente não foram configuradas no ambiente de execução; não existe usuário Auth de teste; a opção de signup público/anônimo ainda precisa ser conferida no Dashboard; primeiro administrador ainda não foi provisionado. Portanto, o login foi implementado no código, mas não foi testado ponta a ponta e não está liberado para uso.
+
+
+## Atualização — recursos administrativos e experiência do chat (18/11/2026)
+
+Migrations adicionais aplicadas e versionadas:
+- `20261118213000_admin_account_and_role_controls.sql`: RPCs de ativação/desativação e administração de papéis com justificativa e auditoria.
+- `20261118213500_harden_admin_controls_concurrency.sql`: serialização de alterações e proteção contra remoção/desativação do último administrador.
+- `20261118215000_move_admin_definers_to_private_schema.sql`: funções privilegiadas movidas para schema privado.
+- `20261118220000_admin_record_employee_invitation_audit.sql`: auditoria de convites.
+- `20261118221000_enable_message_receipts_realtime.sql`: publicação Realtime de recibos de leitura.
+
+Funcionalidades frontend adicionais no branch `feat/foundation-scaffold`:
+- Painel `/admin` com listagem de perfis, ativação/desativação, concessão/revogação de papéis e justificativa.
+- Convite via Edge Function `invite-employee`, com JWT, perfil ativo, papel `it_admin` e allowlist de domínios.
+- Busca de mensagens (até 30 resultados), respeitando RLS.
+- Recibos de leitura por destinatário; contadores de mensagens não lidas por conversa.
+- Notificações do navegador quando a permissão foi concedida e a aba está oculta; não é push server-side.
+- Histórico carrega as 100 mensagens mais recentes e oferece paginação para mensagens anteriores.
+
+Estado das verificações:
+- CI #123 aprovado para pesquisa de mensagens.
+- CI #134 está em execução/na fila para recibos, notificações e paginação; aguardar resultado.
+- Realtime publication inclui `messages` e `message_receipts`.
+- O projeto tem um administrador de TI ativo confirmado.
+- Security Advisor: aviso WARN de proteção contra senhas vazadas desativada. Health Advisor sem findings.
+
+Limitações e pendências:
+- Não houve teste real de convite, ativação ou fluxo entre duas contas independentes.
+- O valor do secret `ALLOWED_EMAIL_DOMAINS` não pode ser lido pela integração; confirmar no Dashboard sem expor segredos.
+- Site URL/Redirect URLs do Auth ainda precisam ser confirmadas.
+- Anexos permanecem sem scanner antimalware; não liberar downloads.
+- Notificações são apenas do navegador; não há push server-side.
+- Não declarar conclusão SQA nem fechar Issues antes de testes reproduzíveis.
