@@ -15,7 +15,7 @@ Consulte [`docs/DIAGNOSTICO-ESTADO-2026-11-18.md`](docs/DIAGNOSTICO-ESTADO-2026-
 
 ## Requisitos
 
-- Node.js 20.9 ou superior.
+- Node.js 20.19.0 ou superior.
 - npm 10 ou compatível.
 
 ## Instalação
