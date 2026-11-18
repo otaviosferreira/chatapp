@@ -82,3 +82,17 @@ Também foram criados:
 ## Critério de conclusão
 
 A estrutura de banco e a camada inicial de RLS estão aplicadas, mas o módulo de backend não está concluído. Não marcar Issues como Done até haver integração no código, testes autenticados e evidências reproduzíveis.
+
+
+## Integração inicial de autenticação no Next.js
+
+Implementado no branch `feat/foundation-scaffold`:
+- Dependências Supabase SSR e JS fixadas em versões exatas (`@supabase/ssr@0.12.7` e `@supabase/supabase-js@2.119.1`).
+- Cliente Supabase server-side com cookies e cliente browser tipado.
+- Tipos TypeScript gerados a partir do schema atual em `lib/supabase/database.types.ts`.
+- `proxy.ts` do Next.js 16 usa `auth.getClaims()` para validar/renovar sessão.
+- Tela de login sem opção de cadastro público; Server Action de login/logout.
+- Rota `/chat` verifica JWT e exige `profiles.status='active'`; contas pendentes/desabilitadas não entram.
+- Sem variáveis configuradas, a aplicação mostra orientação de configuração em vez de tentar autenticar.
+
+**Ainda não validado em runtime:** variáveis de ambiente não foram configuradas no ambiente de execução; não existe usuário Auth de teste; a opção de signup público/anônimo ainda precisa ser conferida no Dashboard; primeiro administrador ainda não foi provisionado. Portanto, o login foi implementado no código, mas não foi testado ponta a ponta e não está liberado para uso.
