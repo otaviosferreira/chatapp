@@ -31,6 +31,8 @@ export default async function ChatPage() {
     redirect("/login?error=pending");
   }
 
+  const { data: adminRole } = await supabase.from("profile_roles").select("roles!inner(code)").eq("profile_id", userId).eq("roles.code", "it_admin").maybeSingle();
+
   return (
     <main className="min-h-screen bg-slate-100">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
@@ -42,7 +44,7 @@ export default async function ChatPage() {
           <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Sair
           </button>
-        </form>
+        </form></div>
       </header>
       <ChatWorkspace userId={userId} userName={profile.full_name} />
     </main>
