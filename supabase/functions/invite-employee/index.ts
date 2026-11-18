@@ -43,10 +43,9 @@ export default {
 
     const { data, error } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, { data: { full_name: fullName } });
     if (error || !data.user) return json({ error: "invite_failed" }, 400);
-    const { error: auditError } = await ctx.supabaseAdmin.schema("private").from("audit_logs").insert({
-      actor_profile_id: actorId, action: "admin.invitation_sent", resource_type: "profile",
-      resource_id: data.user.id, reason: "Convite de acesso enviado pela administração de TI",
-      metadata: { email_domain: domain },
+    const { error: auditError } = await ctx.supabase.rpc("admin_record_invitation", {
+      _invited_profile_id: data.user.id,
+      _email_domain: domain,
     });
     if (auditError) return json({ error: "audit_write_failed" }, 500);
     return json({ ok: true, profile_id: data.user.id });
