@@ -284,6 +284,30 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     setUpdatingMembers(false);
   }
 
+  async function leaveGroupConversation() {
+    if (!selectedConversationId || selectedConversation?.type !== "group" || updatingMembers) return;
+
+    setUpdatingMembers(true);
+    setErrorMessage(null);
+    const { error } = await supabase
+      .from("conversation_members")
+      .update({ left_at: new Date().toISOString() })
+      .eq("conversation_id", selectedConversationId)
+      .eq("profile_id", userId);
+
+    if (error) {
+      setErrorMessage("Não foi possível sair do grupo. Tente novamente.");
+    } else {
+      setConversations((current) => current.filter((item) => item.id !== selectedConversationId));
+      setSelectedConversationId(null);
+      setMessages([]);
+      setActiveMemberIds([]);
+      setMyMemberRole(null);
+      setNewGroupMemberId("");
+    }
+    setUpdatingMembers(false);
+  }
+
   async function createGroupConversation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const title = groupTitle.trim();
@@ -438,9 +462,19 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
 
         {selectedConversation?.type === "group" ? (
           <div className="border-b border-slate-200 bg-white px-5 py-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Participantes ativos ({activeMemberIds.length})
-            </p>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Participantes ativos ({activeMemberIds.length})
+              </p>
+              <button
+                type="button"
+                disabled={updatingMembers}
+                onClick={() => void leaveGroupConversation()}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {updatingMembers ? "Aguarde..." : "Sair do grupo"}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {activeMemberIds.map((memberId) => {
                 const memberName = memberId === userId
