@@ -22,7 +22,7 @@ export function AdminWorkspace({currentUserId}:{currentUserId:string}) {
   for(const item of r.data??[]){const role=item.roles as unknown as {code:string};(next[item.profile_id]??=[]).push(role.code);}
   setRoles(next);
  },[supabase]);
- useEffect(()=>{void load();},[load]);
+ useEffect(()=>{void Promise.resolve().then(load);},[load]);
  async function statusChange(id:string,status:"active"|"disabled"){
   if(id===currentUserId||busy)return;
   if(reason.trim().length<8){setError("Informe um motivo com pelo menos 8 caracteres.");return;}
