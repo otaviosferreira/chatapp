@@ -193,7 +193,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     setSearching(true);
     setHasSearched(true);
     setErrorMessage(null);
-    const escapedTerm = term.replace(/[%_]/g, "\\    const escapedTerm = term.replace(/[\\%_]/g, "\\  async function sendMessage(event: FormEvent<HTMLFormElement>) {");");
+    const escapedTerm = term;
     const { data, error } = await supabase
       .from("messages")
       .select("id,conversation_id,sender_id,client_message_id,body,reply_to_id,created_at")
