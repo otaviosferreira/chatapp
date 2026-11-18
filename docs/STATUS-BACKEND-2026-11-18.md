@@ -17,6 +17,9 @@
 | `20261118203300` | `enable_message_realtime_and_dedupe_policy` | Remove política redundante e adiciona `public.messages` à publicação Realtime |
 | `20261118203538` | `add_transactional_conversation_creation` | Adiciona RPC `create_conversation` com validação de participantes, direct_key canônica e criação de membros |
 | `20261118203551` | `restore_rls_guarded_conversation_insert_grants` | Mantém a RPC como caminho recomendado e restaura permissões de INSERT ainda protegidas por RLS |
+| `20261118203939` | `expose_minimal_active_employee_directory` | Concede leitura de colunas mínimas do diretório e não expõe e-mails corporativos |
+| `20261118204036` | `combine_profile_directory_select_policy` | Consolida regras de leitura de perfil em uma única política RLS |
+| `20261118204056` | `enforce_direct_and_group_membership_limits` | Valida direct_key canônica, limita conversas diretas a 2 participantes e grupos a 50 |
 
 ## Estrutura criada
 
@@ -44,6 +47,8 @@ Também foram criados:
 - RLS em todas as tabelas públicas e privadas.
 - Publicação `supabase_realtime` para a tabela `messages`.
 - RPC `public.create_conversation` (SECURITY INVOKER), com validação de conta ativa, limite de participantes, deduplicação de participantes e chave canônica para conversa direta. O caminho recomendado no cliente é chamar esta RPC.
+- Diretório mínimo de funcionários: leitura limitada a `id`, `full_name`, `status` e `avatar_path`; `corporate_email` não tem privilégio SELECT para usuários autenticados comuns.
+- Trigger valida a chave canônica de conversas diretas; trigger serializado limita conversa direta a 2 pessoas e grupo a 50 participantes.
 
 ## Storage e restrições atuais
 
@@ -57,10 +62,10 @@ Também foram criados:
 ## Verificações executadas
 
 - Projeto: `ACTIVE_HEALTHY`.
-- Migrations: 3 registradas no Supabase.
+- Migrations: 8 registradas no Supabase e versionadas no repositório.
 - Tabelas: 9 públicas e 2 privadas.
 - RLS: habilitada em todas as tabelas públicas; sem tabela pública sem RLS.
-- Políticas: 19 públicas e 2 privadas na última inspeção.
+- Políticas: 18 públicas e 2 privadas na última inspeção.
 - Buckets: 2, ambos privados.
 - Realtime: `public.messages` confirmada na publicação.
 - Supabase Security Advisor: sem findings na última execução.
@@ -72,16 +77,28 @@ Também foram criados:
 1. No Supabase Dashboard, confirmar que cadastro público (signups) e login anônimo estão desabilitados. Essa configuração ainda não foi verificada via ferramenta.
 2. Definir e executar o bootstrap do primeiro administrador de TI por processo controlado; não usar `user_metadata` como fonte de autorização.
 3. Implementar fluxo server-side de convite/criação de usuários, atribuição de papel, ativação e desativação/revogação de sessão.
-4. Integrar Auth no Next.js usando somente chave publicável no browser e chave secreta exclusivamente no servidor.
+4. Configurar as variáveis de ambiente do Supabase no ambiente local/deploy; a chave publicável pode ficar no browser e qualquer chave secreta permanece exclusivamente no servidor.
 5. Executar testes positivos e negativos de RLS com usuários sintéticos: usuário ativo, usuário pendente, desabilitado, membro e não membro, admin e funcionário.
-6. Integrar e testar a RPC `create_conversation` com sessões autenticadas, incluindo casos de direct_key duplicada, usuário inativo e participantes inválidos.
-7. Implementar persistência de mensagens, receipts e sincronização Realtime na interface.
-8. Implementar scanner antimalware e validar assinatura real do arquivo antes de disponibilizar download.
-9. Revisar políticas de retenção, auditoria, exportação independente e limites de recursos do plano Free.
+6. Testar a RPC `create_conversation` com sessões autenticadas, incluindo direct_key duplicada, usuário inativo, participantes inválidos e limites de participantes.
+7. Testar ponta a ponta a interface inicial de conversas, envio de mensagens, paginação/histórico e sincronização Realtime; implementar receipts visuais.
+8. Implementar gestão de grupos pela interface, busca, notificações e painel de TI.
+9. Implementar scanner antimalware e validar assinatura real do arquivo antes de disponibilizar download.
+10. Revisar políticas de retenção, auditoria, exportação independente e limites de recursos do plano Free.
+
+## Interface inicial de conversas e CI
+
+Implementado no branch `feat/foundation-scaffold`:
+- Lista as conversas ativas do usuário, usando RLS para restringir membership.
+- Diretório mínimo de funcionários ativos e início de conversa individual via RPC.
+- Envio de mensagens com `client_message_id` para idempotência e limite de 4.000 caracteres.
+- Listener Realtime para INSERT em `public.messages`; eventos são deduplicados na interface.
+- Tela protegida exige JWT verificado e perfil `active`.
+
+Verificação CI do commit `dc6f320119042598e8c30685d4327c5813ff50a9`: lint, typecheck e build de produção concluídos com sucesso. O workflow gerou e comitou `package-lock.json` em commit posterior. Isso valida compilação, não substitui testes de integração com Supabase Auth.
 
 ## Critério de conclusão
 
-A estrutura de banco e a camada inicial de RLS estão aplicadas, mas o módulo de backend não está concluído. Não marcar Issues como Done até haver integração no código, testes autenticados e evidências reproduzíveis.
+A estrutura de banco, RLS e integração inicial do chat estão aplicadas, mas o módulo não está concluído. Não marcar Issues como Done até haver configuração de ambiente, provisionamento seguro do primeiro administrador, testes autenticados e evidências reproduzíveis.
 
 
 ## Integração inicial de autenticação no Next.js

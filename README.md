@@ -15,7 +15,8 @@ Aplicação web de comunicação privada em desenvolvimento. O projeto utiliza e
 - Supabase de desenvolvimento criado na região São Paulo.
 - Schema inicial aplicado e versionado em `supabase/migrations/`.
 - RLS aplicada nas tabelas públicas; buckets privados e publicação Realtime de mensagens configurados.
-- Autenticação na aplicação, provisionamento de contas, interface de chat, scanner de anexos e testes autenticados ainda não implementados.
+- Autenticação SSR inicial, login/logout, rota protegida e workspace de conversas individuais com envio de mensagens e listener Realtime implementados no código.
+- Provisionamento de contas/primeiro administrador, gestão de grupos na interface, scanner de anexos e testes autenticados ainda pendentes.
 - CI valida lint, TypeScript e build; consulte GitHub Actions para o resultado do commit mais recente.
 
 ## Requisitos
@@ -26,7 +27,7 @@ Aplicação web de comunicação privada em desenvolvimento. O projeto utiliza e
 ## Instalação
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 npm run dev
 ```
@@ -59,12 +60,12 @@ Configure valores apenas em ambiente local ou no gerenciador de segredos. Não c
 
 ## Próximas etapas
 
-1. Integrar Supabase Auth e middleware de sessão, sem signup público.
-2. Implementar provisionamento administrativo e bootstrap seguro do primeiro administrador.
-3. Implementar operações de conversa/mensagem e testar RLS com usuários sintéticos.
-4. Conectar Supabase Realtime à interface.
+1. Configurar variáveis de ambiente, desabilitar signup público/anônimo e provisionar primeiro administrador de teste.
+2. Implementar convite, ativação/desativação de contas e administração de papéis.
+3. Testar RLS, login/logout, conversas, mensagens e Realtime com usuários sintéticos.
+4. Implementar interface de grupos, busca, receipts e notificações.
 5. Implementar scanner antimalware antes de liberar anexos.
-6. Implementar grupos, busca, notificações, painel de TI e auditoria.
+6. Implementar painel de TI e fluxos de auditoria.
 7. Configurar testes unitários, integração, E2E e segurança.
 
 Consulte as Issues do repositório para rastreabilidade das atividades.
