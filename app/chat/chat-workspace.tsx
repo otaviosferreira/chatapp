@@ -185,6 +185,17 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
           void refreshUnreadCounts();
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "message_receipts" },
+        (payload) => {
+          const changed = (payload.new ?? payload.old) as Tables<"message_receipts">;
+          setReceipts((current) => [
+            ...current.filter((item) => !(item.message_id === changed.message_id && item.profile_id === changed.profile_id)),
+            ...(payload.eventType === "DELETE" ? [] : [changed])
+          ]);
+        }
+      )
       .subscribe((status) => {
         if (active) setRealtimeStatus(status.toLowerCase());
       });
@@ -204,6 +215,12 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       }
       setMessages(data ?? []);
       await markMessagesRead(data ?? []);
+      const loadedIds = (data ?? []).map((item) => item.id);
+      if (loadedIds.length) {
+        const { data: receiptRows } = await supabase.from("message_receipts")
+          .select("message_id,profile_id,delivered_at,read_at").in("message_id", loadedIds);
+        if (receiptRows) setReceipts(receiptRows);
+      }
       await refreshUnreadCounts();
     }
 
