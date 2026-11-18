@@ -90,20 +90,19 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   }, [supabase, userId]);
 
   useEffect(() => {
-    if (!selectedConversationId) {
-      return;
-    }
+    const conversationId = selectedConversationId;
+    if (!conversationId) return;
 
     let active = true;
     const channel = supabase
-      .channel(`conversation-messages-${selectedConversationId}`)
+      .channel(`conversation-messages-${conversationId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `conversation_id=eq.${selectedConversationId}`
+          filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
           const incoming = payload.new as Message;
@@ -122,7 +121,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       const { data, error } = await supabase
         .from("messages")
         .select("id,conversation_id,sender_id,client_message_id,body,reply_to_id,created_at")
-        .eq("conversation_id", selectedConversationId)
+        .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true })
         .limit(100);
 
