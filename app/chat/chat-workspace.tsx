@@ -40,6 +40,8 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [receipts, setReceipts] = useState<Tables<"message_receipts">[]>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
 
   async function markMessagesRead(items: Message[]) {
     const incoming = items.filter((item) => item.sender_id !== userId);
@@ -205,7 +207,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
         .from("messages")
         .select("id,conversation_id,sender_id,client_message_id,body,reply_to_id,created_at")
         .eq("conversation_id", activeConversationId)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(100);
 
       if (!active) return;
@@ -213,7 +215,8 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
         setErrorMessage("Não foi possível carregar o histórico desta conversa.");
         return;
       }
-      setMessages(data ?? []);
+      setMessages([...(data ?? [])].reverse());
+      setHasMoreMessages((data ?? []).length === 100);
       await markMessagesRead(data ?? []);
       const loadedIds = (data ?? []).map((item) => item.id);
       if (loadedIds.length) {
@@ -311,6 +314,25 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       setSearchResults(data ?? []);
     }
     setSearching(false);
+  }
+
+  async function loadOlderMessages() {
+    if (!selectedConversationId || !messages[0] || loadingOlderMessages || !hasMoreMessages) return;
+    setLoadingOlderMessages(true);
+    const { data, error } = await supabase.from("messages")
+      .select("id,conversation_id,sender_id,client_message_id,body,reply_to_id,created_at")
+      .eq("conversation_id", selectedConversationId)
+      .lt("created_at", messages[0].created_at)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      setErrorMessage("Não foi possível carregar mensagens anteriores.");
+    } else {
+      const older = [...(data ?? [])].reverse();
+      setMessages((current) => [...older, ...current]);
+      setHasMoreMessages((data ?? []).length === 100);
+    }
+    setLoadingOlderMessages(false);
   }
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
@@ -713,6 +735,13 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
         ) : null}
 
         <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-5">
+          {selectedConversation && hasMoreMessages ? (
+            <div className="flex justify-center">
+              <button type="button" onClick={() => void loadOlderMessages()} disabled={loadingOlderMessages} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-600 disabled:opacity-50">
+                {loadingOlderMessages ? "Carregando..." : "Carregar mensagens anteriores"}
+              </button>
+            </div>
+          ) : null}
           {!selectedConversation ? (
             <div className="flex h-full min-h-64 items-center justify-center text-center text-sm text-slate-500">
               Selecione uma conversa ou inicie uma nova conversa individual.
