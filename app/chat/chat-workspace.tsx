@@ -759,7 +759,11 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
                     <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>
                     <div className={`mt-2 flex items-center justify-end gap-2 text-[10px] ${ownMessage ? "text-blue-100" : "text-slate-400"}`}>
                       <time>{new Date(message.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</time>
-                      {ownMessage ? <span>{receipts.some((receipt) => receipt.message_id === message.id && receipt.read_at) ? "✓✓ Lida" : "✓ Enviada"}</span> : null}
+                      {ownMessage ? (() => {
+                        const readCount = receipts.filter((receipt) => receipt.message_id === message.id && receipt.profile_id !== userId && receipt.read_at).length;
+                        const recipientCount = Math.max(activeMemberIds.length - 1, 1);
+                        return <span>{readCount > 0 ? `✓✓ Lida por ${readCount}/${recipientCount}` : "✓ Enviada"}</span>;
+                      })() : null}
                     </div>
                   </div>
                 </article>
