@@ -421,6 +421,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_record_invitation: {
+        Args: { _invited_profile_id: string; _email_domain: string }
+        Returns: undefined
+      }
     }
     Enums: {
       conversation_type: "direct" | "group"
