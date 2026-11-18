@@ -1,11 +1,11 @@
 # Arquitetura técnica — Chat Corporativo Privado da Calunga
 
-**Versão:** 1.0  
+**Versão:** 1.1 — adaptação aos planos gratuitos  
 **Data:** 18/11/2026  
-**Status:** Proposta arquitetural para validação de TI, Segurança, Jurídico e negócio  
+**Status:** MVP gratuito para desenvolvimento/homologação; não aprovado para produção corporativa  
 **Repositório:** `otaviosferreira/chatapp`
 
-> Esta documentação define uma arquitetura de referência implementável. Não representa uma certificação de segurança, conformidade LGPD, SLA ou dimensionamento definitivo. Região, retenção, RPO/RTO, volume, limites de upload, planos e controles legais precisam de aprovação formal da Calunga.
+> Esta documentação define uma arquitetura de referência para um MVP sem custo de assinatura de Vercel Hobby e Supabase Free. Não representa certificação de segurança, conformidade LGPD, SLA ou dimensionamento definitivo. **Atenção: Vercel Hobby é destinado a uso pessoal e não comercial; por isso, esta configuração não deve hospedar o sistema corporativo real da Calunga.** Use somente dados sintéticos ou anonimizados em desenvolvimento/demonstração. Produção exige plano/provedor cujos termos autorizem uso comercial e controles adequados.
 
 ## Sumário
 
@@ -63,11 +63,15 @@
 - Política de MFA, expiração de sessão e dispositivos.
 - Quem pode auditar conteúdo e em quais circunstâncias.
 - SMTP corporativo para convites/recuperação.
-- Domínio corporativo e DNS.
-- Plano e contrato Vercel/Supabase, DPA, subprocessadores e condições de suporte.
-- Se é exigida cópia imutável externa dos logs ou apenas proteção contra administradores comuns.
+- Aprovação de TI/Jurídico para uso de provedores gratuitos e transferência internacional.
 
----
+### 1.4. Limitação crítica dos planos gratuitos
+
+- **Vercel Hobby (US$ 0):** a política do plano limita o uso a projetos pessoais e não comerciais. O chat da Calunga é um sistema interno empresarial; portanto, o Hobby não é uma opção válida para produção corporativa, mesmo que tecnicamente consiga publicar a aplicação.
+- **Supabase Free (US$ 0):** adequado para protótipo e testes limitados. Inclui 500 MB de banco, 1 GB de Storage, 5 GB de egress, 5 GB de cached egress e 50.000 MAU; projetos podem ser pausados após uma semana de baixa atividade. Não inclui backups automáticos nem PITR.
+- A combinação Free deve ser tratada como ambiente temporário de desenvolvimento/homologação com dados fictícios. Não inserir mensagens reais, dados pessoais de funcionários, documentos internos ou anexos confidenciais.
+- O custo de assinatura das duas plataformas é US$ 0, mas domínio, scanner antimalware, cópias externas, e-mail, monitoramento e serviços auxiliares podem gerar custos.
+- Não prometer disponibilidade, recuperação, imutabilidade de auditoria ou continuidade empresarial com esse arranjo.
 
 ## 2. Arquitetura de hardware e infraestrutura
 
@@ -99,23 +103,23 @@ A escolha de região não prova conformidade LGPD por si só. Confirmar:
 
 Se Vercel/Supabase não oferecerem região, failover ou SLA suficiente para os requisitos aprovados, documentar a lacuna antes da produção.
 
-### 2.3. Ambientes
+### 2.3. Ambientes no cenário gratuito
 
-Separar projetos Supabase e projetos/ambientes Vercel, evitando que Preview use dados reais:
+O limite de projetos e a ausência de isolamento/controles pagos exigem simplificação. Não usar um mesmo banco para desenvolvimento e dados reais.
 
 | Ambiente | Vercel | Supabase | Dados |
 |---|---|---|---|
-| Desenvolvimento | Local + Preview de desenvolvimento | Projeto dev | Dados sintéticos |
-| Homologação | Preview protegido ou ambiente customizado `staging` | Projeto staging isolado | Dados sintéticos/mascarados |
-| Produção | Production | Projeto prod | Dados reais |
+| Desenvolvimento | Hobby, uso não comercial | Projeto Free 1 | Dados sintéticos |
+| Demonstração/homologação limitada | Preview protegido, ainda sujeito aos termos Hobby | Projeto Free 2, se necessário | Dados sintéticos/anonimizados |
+| Produção corporativa | **Não utilizar Vercel Hobby** | **Não aprovar Supabase Free como produção sem avaliação formal** | Dados reais somente após aprovação e plano compatível |
 
 Regras:
-- Nunca copiar produção para dev sem anonimização aprovada.
+- Não colocar dados reais da Calunga nos ambientes gratuitos.
+- Não usar Preview com dados de produção.
 - Segredos distintos por ambiente.
-- Migrações versionadas e aplicadas em pipeline controlado.
-- Preview protegido por autenticação da Vercel e dados não produtivos.
-- Produção exige aprovação de PR, CI verde e plano de rollback.
-- Banco de homologação separado: não compartilhar o mesmo banco de produção.
+- Migrações versionadas e aplicadas manualmente/controladamente.
+- Os dois projetos Free ativos do Supabase são um limite máximo da conta/organização, não uma arquitetura de alta disponibilidade.
+- Para produção, reavaliar planos e criar ambientes isolados apropriados.
 
 ### 2.4. Dispositivos e navegadores
 
@@ -126,25 +130,19 @@ Regras:
 - O seletor de arquivos deve aceitar apenas PDF/JPEG e não deve acionar captura de câmera.
 - A aplicação não controla cópias, screenshots ou fotografia externa do conteúdo exibido; política corporativa e controles de endpoint são complementares.
 
-### 2.5. Disponibilidade, backup e continuidade
+### 2.5. Disponibilidade, backup e continuidade no Free
 
-**Objetivos propostos, sujeitos a aprovação:**
-- RPO inicial: até 15 minutos para banco transacional, condicionado à contratação/configuração de PITR.
-- RTO inicial: até 4 horas para recuperação do serviço.
-- Para logs de auditoria críticos: RPO alvo próximo de zero por exportação contínua/assíncrona e verificação de integridade.
+**Não definir RPO/RTO empresarial para a configuração gratuita.** Não há backup automático do banco nem PITR no Supabase Free, e não há garantia de que o projeto permaneça ativo se ficar com baixa atividade por uma semana.
 
-Não prometer estes objetivos sem teste e plano contratual. Backups diários do Supabase Pro têm retenção publicada de 7 dias; PITR oferece granularidade de segundos e, na documentação consultada, RPO de até 2 minutos, com custo adicional. Backup de banco não deve ser confundido com backup de objetos Storage: testar/exportar também metadados e arquivos.
+Plano mínimo para dados exclusivamente fictícios:
+1. Fazer exportação lógica manual e frequente do banco com Supabase CLI (db dump), armazenando-a fora do projeto.
+2. Exportar também os objetos do Storage; dump do banco não inclui os binários dos arquivos.
+3. Criptografar cópias, restringir acesso e testar restauração em projeto separado.
+4. Documentar que backup manual depende de execução e conferência humana.
+5. Não considerar cópia no mesmo projeto como backup independente.
+6. Não usar o plano Free para guardar evidências ou histórico corporativo que precise de recuperação garantida.
 
-Plano:
-1. Ativar backup automático e avaliar PITR.
-2. Exportar cópia independente dos dados críticos e dos objetos Storage, com criptografia e acesso segregado.
-3. Guardar chaves de recuperação separadamente.
-4. Testar restauração trimestralmente em projeto isolado.
-5. Documentar dependências, DNS, secrets, migrações e runbook.
-6. Testar indisponibilidade de Vercel, Supabase, região e provedor de e-mail.
-7. Medir RPO/RTO reais em exercícios.
-
----
+A produção só poderá ser aprovada depois de contratar solução com backup automatizado, retenção definida, restauração testada e RPO/RTO formalmente aceitos.
 
 ## 3. Arquitetura de software e aplicações
 
@@ -176,17 +174,21 @@ Regras:
 - Chave Supabase secret/service_role somente em variável server-side sem prefixo `NEXT_PUBLIC_`.
 - A chave privilegiada deve ser usada apenas por rotas específicas, com validação de autorização e trilha de auditoria; preferir chamadas com token do usuário e RLS para operações comuns.
 - Não fazer proxy de upload binário através de Vercel Functions: payload máximo documentado de 4,5 MB. Upload deve ir direto ao Storage com autorização temporária.
+- No Hobby, funções têm cotas de execução/CPU e duração limitada (10 s padrão; até 60 s configurável segundo a documentação do plano). Evitar processamento pesado, tarefas longas e scanner dentro de uma Function.
 
-### 3.3. Supabase
+### 3.3. Supabase Free
 
-| Serviço | Uso |
-|---|---|
-| Auth | Autenticar contas pré-provisionadas, convite por TI, recuperação de senha, MFA e sessões |
-| PostgreSQL | Funcionários, departamentos, papéis, conversas, mensagens, recibos e logs |
-| RLS | Restringir leitura/escrita por usuário, associação e papel |
-| Realtime | Eventos de mensagens, recibos e atualizações de conversa |
-| Storage | Buckets privados de quarentena e anexos aprovados |
-| Edge Functions | Processamento pontual, webhooks e tarefas próximas ao Supabase; não duplicar regras sem necessidade |
+| Serviço | Uso no MVP gratuito | Limite/ressalva |
+|---|---|---|
+| Auth | Contas pré-provisionadas e login | Até 50.000 MAU incluídos; não habilitar cadastro público |
+| PostgreSQL | Dados de teste | 500 MB por projeto; CPU/RAM compartilhadas |
+| RLS | Autorização por usuário/conversa | Disponível; precisa de testes negativos rigorosos |
+| Realtime | Eventos do chat de demonstração | Medir conexões, mensagens e fan-out; respeitar cotas do Free |
+| Storage | Anexos de teste, se liberados | 1 GB total; egress limitado |
+| Edge Functions | Tarefas pequenas | Não depender de processamento demorado |
+| Backups | Exportação manual | Sem backup automático e sem PITR no Free |
+
+Manter o banco pequeno: paginação obrigatória, retenção limitada apenas para dados fictícios e limpeza de dados de teste com rotina aprovada. Não assumir que “API requests ilimitadas” significa capacidade ilimitada de banco, CPU, conexões ou tráfego.
 
 ### 3.4. Módulos e dependências
 
@@ -300,51 +302,25 @@ Restrições:
 9. Destinatário registra entrega e leitura.
 10. Logs de segurança/auditoria preservam ações relevantes.
 
-### 4.4. Storage e arquivos
+### 4.4. Storage e arquivos no cenário gratuito
 
 Buckets privados:
-- `chat-quarantine`: upload recém-recebido, inacessível para download pelos usuários.
-- `chat-attachments`: somente arquivos aprovados.
+- chat-quarantine: upload recém-recebido, sem download por usuários.
+- chat-attachments: somente arquivos aprovados.
 
-Chave de objeto aleatória, por exemplo:
-`{conversation_uuid}/{attachment_uuid}/{random_object_name}`
+Restrições do Supabase Free:
+- Cota total de Storage: **1 GB**.
+- Tamanho máximo suportado pelo serviço Free: **50 MB por arquivo**; para o MVP, definir limite de aplicação bem menor, por exemplo **5 MB**, para controlar consumo e egress.
+- Egress incluído: **5 GB**, além de 5 GB de cached egress.
 
 Política:
-- Limite inicial sugerido: 10 MB por arquivo, **a confirmar com TI**; valor deve ser configurável e não é requisito já aprovado.
-- Extensões: `.pdf`, `.jpg`, `.jpeg`.
-- MIME aceito: `application/pdf`, `image/jpeg`.
-- Verificar assinatura: PDF inicia com assinatura válida `%PDF-`; JPEG com bytes mágicos `FF D8 FF`.
-- Validar tamanho, MIME detectado, extensão, parser e consistência; não confiar no nome nem no Content-Type informado pelo browser.
-- Quarentena até verificação antimalware; arquivos rejeitados não ficam disponíveis.
-- Considerar CDR/sanitização de PDF e remover metadados EXIF de JPEG se política de privacidade exigir.
-- Não permitir SVG, PNG, GIF, HEIC, ZIP, Office, áudio ou vídeo.
-- Download via URL assinada de curta duração, emitida após validar usuário ativo e membership.
-- Não usar bucket público nem URL permanente.
-- Guardar hash SHA-256, tamanho e resultado da inspeção.
-- Upload deve ser direto do browser ao Storage usando autorização limitada; Vercel não deve receber o binário.
-
-A varredura antimalware exige um scanner. Recomenda-se integrar um serviço dedicado ou worker isolado como componente complementar; escolher fornecedor, região, SLA e contrato de tratamento antes da produção. Até existir scanner aprovado, arquivos permanecem em quarentena e não são liberados automaticamente.
-
-### 4.5. Governança e LGPD
-
-Classificação sugerida:
-- Pública: informações institucionais liberadas.
-- Interna: nomes, departamentos e metadados operacionais.
-- Confidencial: conteúdo das mensagens e anexos.
-- Restrita: credenciais, segredos, chaves, registros de auditoria e dados de segurança.
-
-Controles:
-- Definir finalidade e base legal com Jurídico/Encarregado.
-- Informar funcionários sobre monitoramento, auditoria e retenção.
-- Coletar somente dados necessários.
-- Definir prazo de retenção por categoria e legal hold.
-- Processar solicitações de titulares conforme fluxo jurídico.
-- Preservar dados históricos após desligamento, com acesso revogado e retenção definida.
-- Fazer RIPD/DPIA quando indicado pelo Encarregado/Jurídico.
-- Contratos e DPA com operadores e análise de transferência internacional.
-- Backups e restaurações também devem respeitar retenção e acesso.
-
----
+- Extensões permitidas: .pdf, .jpg, .jpeg.
+- MIME aceito: application/pdf, image/jpeg.
+- Validar assinatura real do arquivo (PDF e JPEG), não confiar no nome/extensão enviados pelo navegador.
+- Gerar nome interno aleatório e guardar nome original apenas como metadado tratado.
+- Buckets privados, URLs assinadas de curta duração e políticas Storage/RLS.
+- **Não habilitar anexos com dados reais no MVP gratuito.** A quarentena só é eficaz se houver scanner antimalware confiável. Como o plano Free não fornece scanner, escolher e validar um serviço externo antes de liberar anexos; esse serviço pode não ser gratuito.
+- Se não houver scanner aprovado, manter upload desabilitado. Nunca marcar arquivo como “limpo” apenas por passar na validação de MIME/magic bytes.
 
 ## 5. Arquitetura de segurança
 
@@ -431,43 +407,43 @@ Imutabilidade:
 
 ### 5.6. Segurança operacional
 
-- MFA para Vercel, GitHub e Supabase Dashboard.
+- MFA para contas administrativas e para os painéis dos provedores, quando disponível.
 - Membros de equipe com privilégio mínimo.
-- Proteção de branch main, PR obrigatório, revisão de código e CI.
-- Dependências pinadas e lockfile versionado; análise de vulnerabilidades/SCA.
-- Secret scanning e remoção imediata de segredo comprometido.
+- Proteção da branch principal, revisão de código e CI.
+- Dependências pinadas e lockfile versionado; análise de vulnerabilidades.
+- Secret scanning e rotação imediata de segredo comprometido.
 - CSP, HSTS, frame-ancestors, X-Content-Type-Options e Referrer-Policy.
 - Logs sem tokens, senhas ou conteúdo completo de mensagem por padrão.
 - Runbook de incidente com classificação, contenção, preservação de evidências, comunicação e lições aprendidas.
-- Testes SAST/DAST, pentest e revisão de RLS antes de produção.
+- Testes SAST/DAST, revisão de RLS e testes de autorização antes de qualquer piloto.
 
----
+**Limitações específicas do Free:** logs e observabilidade têm retenção/recursos reduzidos; não há log drain e nem arquivo WORM fornecido pelo plano. Um audit_logs append-only dentro do mesmo projeto não é imutável contra o proprietário do projeto. Para produção, exportar auditoria para destino independente e imutável, com segregação de administração.
 
 ## 6. Arquitetura de nuvem
 
-### 6.1. Vercel
+### 6.1. Vercel Hobby
 
-- Importar o repositório GitHub e conectar à equipe Vercel da Calunga.
-- Preview para branch/PR e Production após merge na branch principal.
-- Proteger Preview; impedir indexação e acesso público de ambientes não produtivos.
-- Configurar domínio corporativo, DNS e HTTPS.
-- Configurar Function Region `gru1` para chamadas ao Supabase em `sa-east-1`.
-- Definir variáveis por ambiente; segredos não expostos ao browser.
-- Usar logs, métricas, alertas e rollback para deploy anterior.
-- Node.js runtime padrão; não adotar Edge runtime sem necessidade comprovada.
-- Não armazenar estado de sessão em memória da Function; funções são escaláveis/efêmeras.
+- Uso restrito a projetos pessoais e não comerciais segundo os termos do plano Hobby.
+- **Não usar para hospedar a operação corporativa da Calunga.** Utilizar apenas protótipo/demonstração com dados fictícios.
+- O Hobby oferece deploy via Git e Preview, mas sem recursos de colaboração de equipe do Pro.
+- Limites publicados incluem 1 milhão de invocações de Functions, 4 CPU-horas ativas, 360 GB-horas de memória provisionada e 6.000 minutos de build por ciclo/mês, além de limites de duração e logs reduzidos; consultar a página de limites vigente.
+- Functions: evitar tarefas longas; duração padrão de 10 s e máximo configurável de até 60 s no Hobby.
+- Não pressupor log retention, suporte, SLA, proteção avançada ou observabilidade empresarial.
+- Variáveis de ambiente por ambiente; segredos nunca no browser.
+- Antes de qualquer uso comercial, migrar para plano cujos termos autorizem esse uso e validar recursos de segurança/colaboração.
 
-### 6.2. Supabase
+### 6.2. Supabase Free
 
-- Um projeto por ambiente.
-- Banco Postgres com migrações SQL versionadas.
-- Auth com signup público desligado e SMTP corporativo configurado.
-- Realtime com canais privados e autorização RLS; desligar acesso público a canais.
-- Storage com buckets privados e políticas de objetos.
-- RLS em toda tabela exposta.
-- Backups automáticos e PITR conforme RPO contratado.
-- Logs/alertas e revisão periódica de uso.
-- Projeto de produção com compute e plano compatíveis com conexões, concorrência, tamanho e SLA aprovados.
+- Até dois projetos Free ativos por organização/conta conforme a regra vigente.
+- Banco de 500 MB por projeto, Storage de 1 GB, egress de 5 GB e cached egress de 5 GB.
+- Até 50.000 usuários ativos mensais incluídos.
+- Projeto pode ser pausado após uma semana de baixa atividade.
+- Sem backup automático, sem PITR e sem garantia de continuidade empresarial.
+- Auth sem cadastro público; criar usuários somente por operação administrativa segura.
+- Realtime com canais privados e autorização RLS; medir consumo e limitar fan-out.
+- Storage privado; anexos de usuários reais desabilitados até haver scanner e backup de objetos.
+- RLS em todas as tabelas expostas; não confiar em user_metadata para autorização.
+- Fazer exportações manuais e testar restauração; nunca chamar isso de backup automatizado.
 
 ### 6.3. Integração
 
@@ -671,26 +647,31 @@ Estimativas:
 - Egress cresce com leitura de histórico, anexos e conexões.
 - Dimensionar conexões com pooler e evitar abrir conexão PostgreSQL por usuário.
 
-### 8.2. Referência de preços consultada em 18/11/2026
+### 8.2. Referência de preços consultada em 18/11/2026 — planos gratuitos
 
-Valores em USD, antes de tributos, câmbio e itens adicionais; verificar checkout/contrato no momento da contratação.
+| Plataforma | Plano | Custo de assinatura | Limites relevantes |
+|---|---|---:|---|
+| Vercel | Hobby | US$ 0/mês | Uso pessoal/não comercial; cotas de Functions/build/logs; não adequado à produção empresarial |
+| Supabase | Free | US$ 0/mês | 500 MB banco, 1 GB Storage, 5 GB egress, 5 GB cached egress, 50.000 MAU; pausa por inatividade |
+| **Total de assinatura** |  | **US$ 0/mês** | Não inclui serviços externos ou custos indiretos |
 
-| Plataforma | Referência pública consultada | Observações |
-|---|---:|---|
-| Vercel Pro | a partir de US$ 20/mês | Inclui crédito de uso; funções, tráfego e recursos adicionais podem gerar excedentes |
-| Supabase Pro | a partir de US$ 25/mês | Primeiro projeto incluído na assinatura, compute/créditos conforme calculadora e uso |
-| Supabase Pro compute Micro | a partir de US$ 10/mês | Crédito de compute publicado pode compensar a instância Micro no cenário base |
-| Supabase Storage Pro | 100 GB incluídos | Excedente publicado: US$ 0,0213/GB |
-| Supabase egress Pro | 250 GB incluídos | Excedente varia por tipo de egress; consultar pricing |
-| Supabase Realtime Pro | 5 milhões de mensagens incluídas | Excedente publicado: US$ 2,50 por milhão; 500 conexões simultâneas incluídas |
-| Supabase Auth Pro | 100 mil MAU incluídos | Excedente publicado: US$ 0,00325 por MAU |
-| Supabase PITR | US$ 100/mês por 7 dias de retenção, conforme tabela pública consultada | Confirmar opções e retenção contratada |
+Custos que podem continuar existindo: domínio, e-mail/SMTP, scanner antimalware, backup externo, monitoramento, suporte e mão de obra operacional. Portanto, “US$ 0” significa somente que as assinaturas-base desses dois planos são gratuitas.
 
-Referência de base indicativa: Vercel Pro + Supabase Pro ≈ US$ 45/mês antes de excedentes, impostos, serviços adicionais e dimensionamento de compute. Não é orçamento final nem garantia de que o uso ficará dentro das franquias.
+Fontes oficiais:
+- Vercel Hobby: https://vercel.com/docs/plans/hobby
+- Vercel preços: https://vercel.com/pricing
+- Supabase preços: https://supabase.com/pricing
+- Supabase pausa por inatividade: https://supabase.com/docs/guides/platform/free-project-pausing
+- Supabase backups: https://supabase.com/docs/guides/platform/backups
 
-### 8.3. Escalabilidade
+### 8.3. Escalabilidade no Free
 
-- Começar com compute Supabase dimensionado pelo teste de carga, não por estimativa arbitrária.
+- Tratar como protótipo com poucos usuários e dados sintéticos.
+- Monitorar banco (500 MB), Storage (1 GB), egress (5 GB), cached egress (5 GB), usuários ativos e cotas de Functions.
+- Paginar histórico, limitar anexos e não carregar conversas inteiras.
+- Testar fan-out com grupos pequenos.
+- Não assumir escalabilidade horizontal, alta disponibilidade ou capacidade de pico.
+- Planejar migração para plano comercial antes de qualquer uso corporativo real.
 - Monitorar conexões, CPU, memória, IOPS, tamanho do banco, egress, Storage, Realtime messages e peak connections.
 - Paginar histórico e índices adequados.
 - Não carregar todo o histórico em cada abertura de conversa.
@@ -713,6 +694,10 @@ Referência de base indicativa: Vercel Pro + Supabase Pro ≈ US$ 45/mês antes 
 | Upload malicioso | Alto | Quarentena, scanner, parser e URLs assinadas |
 | Supabase/Vercel como dependência de fornecedor | Médio/alto | Exportação, IaC/migrações, plano de continuidade e avaliação contratual |
 | Backup de banco não equivale a backup de Storage | Alto | Plano independente para objetos e teste de restauração |
+| Supabase Free não possui backup automático/PITR e pode pausar projeto | Crítico | Somente dados fictícios; exportação manual e migração para plano com backup antes de produção |
+| Vercel Hobby restringe uso a pessoal/não comercial | Crítico | Não hospedar sistema corporativo; migrar para plano com termos comerciais antes do go-live |
+| Cotas Free de banco, Storage e egress podem ser esgotadas | Alto | Monitorar cotas; limitar histórico/anexos e não armazenar dados reais |
+| Ausência de scanner e WORM incluídos no Free | Alto | Desabilitar anexos reais e exportar auditoria para serviço independente na produção |
 | Realtime pode gerar alto fan-out/custo | Médio | Teste de carga e otimização de canais/subscrições |
 | Ausência de quantitativos | Médio | Descoberta de carga antes de fechar plano |
 | Região e transferência internacional | Alto | DPA, sub-processadores, revisão jurídica e configuração de região |
@@ -729,7 +714,7 @@ Referência de base indicativa: Vercel Pro + Supabase Pro ≈ US$ 45/mês antes 
 - **Alternativas:** servidor próprio, outro provedor cloud.
 - **Escolha:** Next.js/TypeScript na Vercel.
 - **Justificativa:** deploy Git, Preview, CDN e Functions integradas.
-- **Consequências:** dependência de plataforma e limites de Functions; upload binário não passa por Functions.
+- **Consequências:** dependência de plataforma e limites de Functions; upload binário não passa por Functions. Hobby é não comercial e, portanto, serve apenas ao protótipo, não à operação da Calunga.
 
 ### ADR-002 — Supabase como backend principal
 
@@ -737,7 +722,7 @@ Referência de base indicativa: Vercel Pro + Supabase Pro ≈ US$ 45/mês antes 
 - **Alternativas:** serviços autogerenciados ou outros BaaS.
 - **Escolha:** Supabase.
 - **Justificativa:** Postgres, RLS, Auth, Realtime e Storage no mesmo ecossistema.
-- **Consequências:** políticas RLS exigem engenharia e testes rigorosos; planejar portabilidade.
+- **Consequências:** políticas RLS exigem engenharia e testes rigorosos; Free limita banco/Storage/egress, pausa por inatividade e não oferece backup automático/PITR; não usar como produção corporativa.
 
 ### ADR-003 — Região São Paulo
 
@@ -791,32 +776,40 @@ Referência de base indicativa: Vercel Pro + Supabase Pro ≈ US$ 45/mês antes 
 
 ## 11. Plano de implantação
 
-1. **Descoberta e governança:** aprovar quantitativos, retenção, RPO/RTO, SLA, região, limites e papéis.
-2. **Fundação cloud:** criar equipes/projetos separados, região, domínio, MFA, secrets e ambientes.
-3. **Banco e identidade:** migrations, Auth sem signup público, RBAC, RLS, políticas e testes.
-4. **Chat básico:** conversas individuais/grupos, mensagens idempotentes, histórico e Realtime.
-5. **Arquivos:** buckets privados, quarentena, scanner, validação de assinatura e URLs assinadas.
-6. **Administração:** provisionamento, suspensão, papéis e trilha administrativa.
-7. **Auditoria:** consulta justificada, exportação independente e revisão de acesso.
-8. **Qualidade e segurança:** testes unitários/integrados/E2E, SAST/DAST, pentest, carga e testes RLS.
-9. **Homologação:** UAT com TI, SQA, representantes e Jurídico/Encarregado.
-10. **Produção:** deploy aprovado, monitoramento, backup, runbooks e plano de rollback.
-11. **Operação contínua:** revisão mensal de acessos/custos e teste trimestral de restauração.
+1. **Descoberta e governança:** aprovar escopo de protótipo, usuários de teste e dados fictícios.
+2. **Fundação Free:** criar conta Vercel Hobby para uso pessoal/não comercial e até dois projetos Supabase Free para desenvolvimento/demonstração.
+3. **Banco e identidade:** migrations, Auth sem signup público, RBAC, RLS e testes.
+4. **Chat básico:** conversas individuais/grupos, mensagens idempotentes, histórico e Realtime, somente com contas de teste.
+5. **Arquivos:** manter upload desabilitado até selecionar e validar scanner, política de armazenamento e backup de objetos.
+6. **Administração:** provisionamento e suspensão de usuários de teste.
+7. **Auditoria:** validar logs funcionais; não alegar imutabilidade enquanto permanecerem no mesmo projeto.
+8. **Qualidade:** testes unitários, integrados, E2E e testes negativos de RLS.
+9. **Homologação:** demonstração com dados sintéticos e sem informações internas.
+10. **Bloqueio de produção:** antes do go-live, migrar para planos/provedores que permitam uso comercial e aprovar backup automático, SLA, auditoria externa, scanner, LGPD e segurança.
+11. **Operação:** só após aprovação formal e plano compatível.
 
-### Critérios mínimos de go-live
+### Critérios mínimos para demonstração gratuita
 
-- Signup público e anônimo desativados e testados.
-- Usuário desabilitado não autentica nem acessa dados/Realtime/Storage.
-- Matriz RLS testada com usuários de diferentes papéis.
-- Arquivos proibidos rejeitados por extensão, MIME e assinatura.
-- Arquivo em quarentena não é baixável.
-- Auditoria de consulta administrativa registrada.
+- Signup público e anônimo desativados.
+- Apenas contas de teste pré-criadas.
+- Nenhum dado pessoal ou documento real da Calunga.
+- Conversas e grupos protegidos por RLS e testes negativos.
+- Usuário desativado perde acesso.
+- Upload desabilitado até scanner e fluxo de backup serem aprovados.
 - Chaves privilegiadas ausentes do bundle do navegador.
-- Restore de banco e Storage demonstrado.
-- Pentest e testes de carga aprovados.
-- Política LGPD, retenção e comunicação aos funcionários aprovadas.
+- Exportação manual e restauração demonstradas com dados sintéticos.
+- Aviso claro de que o ambiente pode ser pausado e não possui SLA/RPO/RTO empresarial.
 
----
+### Critérios adicionais obrigatórios antes da produção
+
+- Plano de hospedagem autorizado para uso comercial.
+- Banco e ambientes segregados.
+- Backup automatizado do banco e Storage, retenção e restore testados.
+- RPO/RTO e disponibilidade aprovados.
+- Scanner antimalware operacional.
+- Auditoria exportada para destino independente e imutável.
+- Pentest, testes de carga e revisão de RLS aprovados.
+- Contratos/DPA e avaliação LGPD aprovados.
 
 ## 12. Checklist de validação
 
@@ -865,12 +858,16 @@ Referência de base indicativa: Vercel Pro + Supabase Pro ≈ US$ 45/mês antes 
 Documentação e preços consultados em 18/11/2026; revisar antes de contratar ou implementar, pois limites e preços mudam.
 
 - [Vercel Pricing](https://vercel.com/pricing)
+- [Vercel Hobby Plan e limites](https://vercel.com/docs/plans/hobby)
+- [Vercel Fair Use / planos](https://vercel.com/docs/plans)
 - [Vercel Environments](https://vercel.com/docs/deployments/environments)
 - [Vercel Function Regions](https://vercel.com/docs/functions/configuring-functions/region)
 - [Vercel Function Limitations](https://vercel.com/docs/functions/limitations)
 - [Supabase Pricing](https://supabase.com/pricing)
 - [Supabase Available Regions](https://supabase.com/docs/guides/platform/regions)
 - [Supabase Database Backups](https://supabase.com/docs/guides/platform/backups)
+- [Supabase Free Project Pausing](https://supabase.com/docs/guides/platform/free-project-pausing)
+- [Supabase Free Plan Backups FAQ](https://supabase.com/kb/faqs/platform/free-plan-backups)
 - [Supabase Realtime Pricing](https://supabase.com/docs/guides/realtime/pricing)
 - [Supabase Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization)
 - [Supabase Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)
