@@ -21,9 +21,12 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [newParticipantId, setNewParticipantId] = useState("");
+  const [groupTitle, setGroupTitle] = useState("");
+  const [groupMemberIds, setGroupMemberIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState("connecting");
 
@@ -209,6 +212,44 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     setCreating(false);
   }
 
+  async function createGroupConversation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const title = groupTitle.trim();
+    if (!title || groupMemberIds.length < 1 || groupMemberIds.length > 49 || creatingGroup) return;
+
+    setCreatingGroup(true);
+    setErrorMessage(null);
+
+    const { data, error } = await supabase.rpc("create_conversation", {
+      _type: "group",
+      _title: title,
+      _member_ids: groupMemberIds
+    });
+
+    if (error || !data) {
+      setErrorMessage("Não foi possível criar o grupo. Verifique título e participantes ativos.");
+      setCreatingGroup(false);
+      return;
+    }
+
+    const { data: refreshed, error: refreshError } = await supabase
+      .from("conversations")
+      .select("id,type,title,created_by,direct_key,created_at,archived_at")
+      .eq("id", data)
+      .single();
+
+    if (!refreshError && refreshed) {
+      setConversations((current) => [refreshed, ...current.filter((item) => item.id !== refreshed.id)]);
+      setSelectedConversationId(refreshed.id);
+      setGroupTitle("");
+      setGroupMemberIds([]);
+    } else {
+      setErrorMessage("Grupo criado, mas não foi possível atualizar a lista. Atualize a página.");
+    }
+
+    setCreatingGroup(false);
+  }
+
   const selectedConversation = conversations.find((item) => item.id === selectedConversationId);
 
   return (
@@ -240,6 +281,42 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
             className="w-full rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {creating ? "Criando..." : "Nova conversa"}
+          </button>
+        </form>
+
+        <form onSubmit={createGroupConversation} className="mb-4 space-y-2 border-t border-slate-100 pt-4">
+          <label className="block text-xs font-medium text-slate-600" htmlFor="group-title">
+            Criar grupo privado
+          </label>
+          <input
+            id="group-title"
+            value={groupTitle}
+            onChange={(event) => setGroupTitle(event.target.value)}
+            maxLength={100}
+            placeholder="Nome do grupo"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <label className="block text-xs text-slate-500" htmlFor="group-members">
+            Selecione de 1 a 49 participantes (Ctrl/Cmd para múltipla seleção)
+          </label>
+          <select
+            id="group-members"
+            multiple
+            size={4}
+            value={groupMemberIds}
+            onChange={(event) => setGroupMemberIds(Array.from(event.target.selectedOptions, (option) => option.value))}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            {directory.map((person) => (
+              <option key={person.id} value={person.id}>{person.full_name}</option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={!groupTitle.trim() || groupMemberIds.length < 1 || groupMemberIds.length > 49 || creatingGroup}
+            className="w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {creatingGroup ? "Criando grupo..." : "Criar grupo"}
           </button>
         </form>
 
