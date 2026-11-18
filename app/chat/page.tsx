@@ -38,7 +38,7 @@ export default async function ChatPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">ChatApp</p>
           <h1 className="mt-1 text-lg font-semibold text-slate-900">Comunicação privada</h1>
         </div>
-        <form action={signOutAction}>
+        <div className="flex items-center gap-3">{adminRole ? <a href="/admin" className="text-sm font-medium text-blue-700">Administração</a> : null}<form action={signOutAction}>
           <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Sair
           </button>
