@@ -10,7 +10,10 @@ export function AdminWorkspace({currentUserId}:{currentUserId:string}) {
  const [reason,setReason]=useState("");
  const [busy,setBusy]=useState<string|null>(null);
  const [error,setError]=useState<string|null>(null);
- const [notice,setNotice]=useState<string|null>(null);\n const [inviteName,setInviteName]=useState("");\n const [inviteEmail,setInviteEmail]=useState("");\n const [inviteBusy,setInviteBusy]=useState(false);
+ const [notice,setNotice]=useState<string|null>(null);
+ const [inviteName,setInviteName]=useState("");
+ const [inviteEmail,setInviteEmail]=useState("");
+ const [inviteBusy,setInviteBusy]=useState(false);
  const load=useCallback(async()=>{
   const [p,r]=await Promise.all([
    supabase.from("profiles").select("id,full_name,employee_code,status,disabled_at").order("full_name"),
@@ -50,7 +53,8 @@ export function AdminWorkspace({currentUserId}:{currentUserId:string}) {
   setInviteBusy(false);
  }
  return <section className="mx-auto max-w-6xl space-y-5 p-6">
-  <div className="rounded-xl border bg-white p-4"><h2 className="font-semibold">Convidar funcionário</h2><p className="mb-4 text-sm text-slate-500">O convite é enviado pelo Supabase Auth. O funcionário permanece pendente até a ativação pela TI.</p><form onSubmit={sendInvite} className="grid gap-3 md:grid-cols-3"><input required minLength={2} maxLength={120} value={inviteName} onChange={e=>setInviteName(e.target.value)} placeholder="Nome completo" className="rounded-lg border px-3 py-2 text-sm"/><input required type="email" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} placeholder="E-mail corporativo" className="rounded-lg border px-3 py-2 text-sm"/><button disabled={inviteBusy} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{inviteBusy?"Enviando...":"Enviar convite"}</button></form></div>\n  <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Todas as operações exigem justificativa e são registradas na auditoria. Sua própria conta não pode ser alterada por esta tela.</p>
+  <div className="rounded-xl border bg-white p-4"><h2 className="font-semibold">Convidar funcionário</h2><p className="mb-4 text-sm text-slate-500">O convite é enviado pelo Supabase Auth. O funcionário permanece pendente até a ativação pela TI.</p><form onSubmit={sendInvite} className="grid gap-3 md:grid-cols-3"><input required minLength={2} maxLength={120} value={inviteName} onChange={e=>setInviteName(e.target.value)} placeholder="Nome completo" className="rounded-lg border px-3 py-2 text-sm"/><input required type="email" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} placeholder="E-mail corporativo" className="rounded-lg border px-3 py-2 text-sm"/><button disabled={inviteBusy} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{inviteBusy?"Enviando...":"Enviar convite"}</button></form></div>
+  <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Todas as operações exigem justificativa e são registradas na auditoria. Sua própria conta não pode ser alterada por esta tela.</p>
   <div className="rounded-lg border bg-white p-4"><label htmlFor="reason" className="mb-2 block text-sm font-medium">Motivo obrigatório (mínimo 8 caracteres)</label><input id="reason" value={reason} onChange={e=>setReason(e.target.value)} maxLength={500} className="w-full rounded-lg border px-3 py-2 text-sm" placeholder="Ex.: desligamento confirmado pelo RH"/></div>
   {error?<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>:null}
   {notice?<p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</p>:null}
