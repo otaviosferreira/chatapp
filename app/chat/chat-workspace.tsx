@@ -91,8 +91,6 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
 
   useEffect(() => {
     if (!selectedConversationId) {
-      setMessages([]);
-      setRealtimeStatus("disconnected");
       return;
     }
 
@@ -278,7 +276,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
               {selectedConversation?.title ?? (selectedConversation ? "Conversa individual" : "Selecione uma conversa")}
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              Sincronização: {realtimeStatus === "subscribed" ? "conectada" : realtimeStatus}
+              Sincronização: {selectedConversationId ? (realtimeStatus === "subscribed" ? "conectada" : realtimeStatus) : "desconectada"}
             </p>
           </div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{userName}</span>
