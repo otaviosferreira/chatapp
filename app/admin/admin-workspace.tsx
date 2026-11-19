@@ -549,7 +549,11 @@ export function AdminWorkspace({ currentUserId }: { currentUserId: string }) {
                   <p className="mt-2 text-xs font-semibold">{attachment.scan_status === "pending" ? "⏳ Em análise — quarentena" : attachment.scan_status === "clean" ? "✓ Liberado após verificação" : "⛔ Bloqueado"}</p>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
-                  <button type="button" disabled title="A liberação depende de um scanner antimalware real, ainda não configurado." className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-400 disabled:cursor-not-allowed">Liberar (scanner pendente)</button>
+                  {attachment.scan_status === "clean" ? (
+                    <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">Já liberado</span>
+                  ) : (
+                    <button type="button" disabled title="A liberação depende de um scanner antimalware real, ainda não configurado." className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-400 disabled:cursor-not-allowed">Liberar (scanner pendente)</button>
+                  )}
                   <button type="button" onClick={() => setPendingAttachmentDelete(attachment)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 hover:bg-red-100">Excluir definitivamente</button>
                 </div>
               </article>
