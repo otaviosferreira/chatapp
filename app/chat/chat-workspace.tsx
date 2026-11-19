@@ -47,7 +47,8 @@ type ChatWorkspaceProps = {
 
 export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
-  const [conversations, setConversations] = useState<Conversation[]>([]);\n  const [conversationSummaries, setConversationSummaries] = useState<ConversationSummary[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationSummaries, setConversationSummaries] = useState<ConversationSummary[]>([]);
   const [directory, setDirectory] = useState<DirectoryProfile[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
