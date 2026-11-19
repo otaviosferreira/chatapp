@@ -31,11 +31,28 @@ const handler = {
       .eq("roles.code", "it_admin").maybeSingle();
     if (roleError || !role) return json({ error: "forbidden" }, 403);
 
-    let payload: { email?: unknown; full_name?: unknown };
+    let payload: { action?: unknown; email?: unknown; full_name?: unknown; profile_id?: unknown };
     try { payload = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
-    const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
-    const fullName = typeof payload.full_name === "string" ? payload.full_name.trim() : "";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || fullName.length < 2 || fullName.length > 120) {
+    const action = payload.action === "resend" ? "resend" : "invite";
+    let email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+    let fullName = typeof payload.full_name === "string" ? payload.full_name.trim() : "";
+
+    if (action === "resend") {
+      const profileId = typeof payload.profile_id === "string" ? payload.profile_id : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(profileId)) {
+        return json({ error: "invalid_input" }, 400);
+      }
+      const { data: target, error: targetError } = await ctx.supabase
+        .from("profiles").select("id,corporate_email,full_name,status").eq("id", profileId).maybeSingle();
+      if (targetError || !target || target.status !== "pending_invitation") return json({ error: "profile_not_pending" }, 404);
+      email = target.corporate_email.trim().toLowerCase();
+      fullName = target.full_name;
+      const { data: authUser, error: authUserError } = await ctx.supabaseAdmin.auth.admin.getUserById(profileId);
+      if (authUserError || !authUser.user || authUser.user.email?.toLowerCase() !== email) return json({ error: "user_not_found" }, 404);
+      if (authUser.user.email_confirmed_at) return json({ error: "email_already_confirmed" }, 409);
+    }
+
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || (action === "invite" && (fullName.length < 2 || fullName.length > 120))) {
       return json({ error: "invalid_input" }, 400);
     }
 
@@ -47,10 +64,10 @@ const handler = {
 
     const appBaseUrl = Deno.env.get("APP_BASE_URL") ?? "https://chatapp-git-feat-foundatio-a9e755-otavioferreira-5984s-projects.vercel.app";
     const { data, error } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName },
+      ...(action === "invite" ? { data: { full_name: fullName } } : {}),
       redirectTo: new URL("/auth/complete?next=/update-password", appBaseUrl).toString(),
     });
-    if (error || !data.user) return json({ error: "invite_failed" }, 400);
+    if (error || !data.user) return json({ error: action === "resend" ? "resend_failed" : "invite_failed" }, 400);
 
     const { error: auditError } = await ctx.supabase.rpc("admin_record_invitation", {
       _invited_profile_id: data.user.id,
