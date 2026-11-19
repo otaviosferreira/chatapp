@@ -1113,7 +1113,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
                 <article key={message.id} className={`flex ${ownMessage ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[min(80%,42rem)] rounded-2xl px-4 py-3 shadow-sm ${ownMessage ? "bg-blue-700 text-white" : "border border-slate-200 bg-white text-slate-900"}`}>
                     <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>
-                    {attachmentStatuses[message.id] ? (
+                    {attachmentStatus ? (
                       <div className="mt-2 rounded-lg border border-white/20 bg-black/5 p-2 text-xs">
                         <p>{attachmentStatus.scan_status === "pending" ? "⏳ Em análise — arquivo em quarentena" : attachmentStatus.scan_status === "clean" ? "✓ Liberado após verificação" : "⛔ Bloqueado / quarentena"}</p>
                         {attachmentStatus.scan_status === "clean" && attachmentStatus.mime_type === "image/jpeg" && attachmentPreviewUrls[message.id] ? (
