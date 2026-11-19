@@ -404,6 +404,18 @@ export type Database = {
         }
         Returns: string
       }
+      search_chatapp: {
+        Args: { _query: string; _limit?: number }
+        Returns: {
+          category: string
+          id: string
+          title: string
+          subtitle: string | null
+          snippet: string | null
+          conversation_id: string | null
+          created_at: string
+        }[]
+      }
       admin_set_profile_status: {
         Args: {
           _profile_id: string
