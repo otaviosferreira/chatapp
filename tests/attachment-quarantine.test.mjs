@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const migration = await readFile(new URL("../supabase/migrations/20261119205000_quarantine_attachment_upload_and_admin_controls.sql", import.meta.url), "utf8");
 const chat = await readFile(new URL("../app/chat/chat-workspace.tsx", import.meta.url), "utf8");
 const admin = await readFile(new URL("../app/admin/admin-workspace.tsx", import.meta.url), "utf8");
+const deleteMigration = await readFile(new URL("../supabase/migrations/20261119205700_mark_messages_after_attachment_deletion.sql", import.meta.url), "utf8");
 
 test("uploads are restricted to an authenticated member's own quarantine folder", () => {
   assert.match(migration, /bucket_id = 'chat-quarantine'/i);
