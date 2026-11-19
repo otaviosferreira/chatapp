@@ -273,10 +273,11 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
 
   useEffect(() => {
     if (!selectedConversationId) return;
+    const conversationId = selectedConversationId;
     let active = true;
     async function loadAttachmentStatuses() {
       const { data, error } = await supabase.rpc("get_message_attachment_status", {
-        _conversation_id: selectedConversationId
+        _conversation_id: conversationId
       });
       if (!active || error) return;
       const next: Record<string, MessageAttachmentStatus> = {};
