@@ -52,7 +52,7 @@ const handler = {
       if (authUser.user.email_confirmed_at) return json({ error: "email_already_confirmed" }, 409);
     }
 
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || (action === "invite" && (fullName.length < 2 || fullName.length > 120))) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || (action === "invite" && (fullName.length < 2 || fullName.length > 120))) {
       return json({ error: "invalid_input" }, 400);
     }
 
