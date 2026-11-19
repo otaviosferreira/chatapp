@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
@@ -8,6 +8,7 @@ type Conversation = Tables<"conversations">;
 type Message = Tables<"messages">;
 type DirectoryProfile = Pick<Tables<"profiles">, "id" | "full_name">;
 type GlobalSearchResult = { category: string; id: string; title: string; subtitle: string | null; snippet: string | null; conversation_id: string | null; created_at: string };
+type MessageAttachmentStatus = { message_id: string; attachment_id: string; original_name: string; mime_type: string; size_bytes: number; scan_status: string; bucket: string; object_path: string | null };
 type ConversationSummary = {
   conversation_id: string;
   conversation_type: "direct" | "group";
@@ -82,6 +83,10 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [globalSearchBusy, setGlobalSearchBusy] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchError, setGlobalSearchError] = useState<string | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
+  const [attachmentStatuses, setAttachmentStatuses] = useState<Record<string, MessageAttachmentStatus>>({});
+  const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
 
   const refreshConversationSummaries = useCallback(async () => {
     const { data, error } = await supabase.rpc("get_conversation_summaries");
@@ -267,6 +272,43 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   }, [supabase, userId, refreshConversationSummaries]);
 
   useEffect(() => {
+    if (!selectedConversationId) {
+      setAttachmentStatuses({});
+      return;
+    }
+    let active = true;
+    async function loadAttachmentStatuses() {
+      const { data, error } = await supabase.rpc("get_message_attachment_status", {
+        _conversation_id: selectedConversationId
+      });
+      if (!active || error) return;
+      const next: Record<string, MessageAttachmentStatus> = {};
+      for (const item of data ?? []) next[item.message_id] = item as MessageAttachmentStatus;
+      setAttachmentStatuses(next);
+    }
+    void Promise.resolve().then(loadAttachmentStatuses);
+    return () => { active = false; };
+  }, [supabase, selectedConversationId, messages.length]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadCleanImagePreviews() {
+      const cleanImages = Object.values(attachmentStatuses).filter((item) =>
+        item.scan_status === "clean" && item.mime_type === "image/jpeg"
+        && item.bucket === "chat-attachments" && item.object_path
+      );
+      const entries = await Promise.all(cleanImages.map(async (item) => {
+        const { data, error } = await supabase.storage.from(item.bucket).createSignedUrl(item.object_path!, 60);
+        return !error && data?.signedUrl ? [item.message_id, data.signedUrl] as const : null;
+      }));
+      if (!active) return;
+      setAttachmentPreviewUrls(Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null)));
+    }
+    void Promise.resolve().then(loadCleanImagePreviews);
+    return () => { active = false; };
+  }, [attachmentStatuses, supabase]);
+
+  useEffect(() => {
     const activeConversationId = selectedConversationId ?? "";
     if (!activeConversationId) return;
 
@@ -445,6 +487,94 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       setHasMoreMessages((data ?? []).length === 100);
     }
     setLoadingOlderMessages(false);
+  }
+
+  async function uploadAttachment(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || !selectedConversationId || uploadingAttachment) return;
+
+    setUploadingAttachment(true);
+    setAttachmentNotice(null);
+    setErrorMessage(null);
+    try {
+      if (file.size < 1 || file.size > 5 * 1024 * 1024) {
+        throw new Error("O arquivo deve ter até 5 MB.");
+      }
+      if (file.type !== "application/pdf" && file.type !== "image/jpeg") {
+        throw new Error("Formato não permitido. Envie somente PDF ou JPEG.");
+      }
+      const signature = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+      const validPdf = file.type === "application/pdf"
+        && new TextDecoder().decode(signature.slice(0, 5)) === "%PDF-";
+      const validJpeg = file.type === "image/jpeg"
+        && signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff;
+      if (!validPdf && !validJpeg) {
+        throw new Error("O conteúdo do arquivo não corresponde ao formato informado.");
+      }
+
+      const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+      if ((file.type === "application/pdf" && extension !== "pdf")
+        || (file.type === "image/jpeg" && !["jpg", "jpeg"].includes(extension))) {
+        throw new Error("A extensão do arquivo não corresponde ao formato permitido.");
+      }
+
+      const bytes = await file.arrayBuffer();
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      const sha256 = Array.from(new Uint8Array(digest))
+        .map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      const safeName = file.name.normalize("NFKC").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 100);
+      const objectPath = `${selectedConversationId}/${userId}/${crypto.randomUUID()}-${safeName}`;
+
+      const { error: uploadError } = await supabase.storage.from("chat-quarantine").upload(objectPath, file, {
+        cacheControl: "0",
+        contentType: file.type,
+        upsert: false
+      });
+      if (uploadError) throw new Error("Não foi possível enviar o arquivo para a quarentena.");
+
+      const { data, error: registerError } = await supabase.rpc("create_attachment_message", {
+        _conversation_id: selectedConversationId,
+        _client_message_id: crypto.randomUUID(),
+        _original_name: file.name.slice(0, 180),
+        _mime_type: file.type,
+        _size_bytes: file.size,
+        _sha256: sha256,
+        _object_path: objectPath
+      });
+      if (registerError || !data?.[0]) {
+        await supabase.storage.from("chat-quarantine").remove([objectPath]);
+        throw new Error("O arquivo foi enviado, mas não foi possível registrar o anexo. O envio temporário foi removido.");
+      }
+
+      const createdMessage = data[0] as Message;
+      setMessages((current) => [...current, createdMessage]);
+      setAttachmentNotice("Arquivo recebido e mantido em quarentena. Ele ficará indisponível até a verificação de segurança.");
+      void refreshConversationSummaries();
+    } catch (uploadError) {
+      setErrorMessage(uploadError instanceof Error ? uploadError.message : "Falha ao enviar o anexo.");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }
+
+  async function downloadCleanAttachment(attachment: MessageAttachmentStatus) {
+    if (attachment.scan_status !== "clean" || attachment.bucket !== "chat-attachments" || !attachment.object_path) {
+      setErrorMessage("Este arquivo ainda não está liberado para download.");
+      return;
+    }
+    const { data, error } = await supabase.storage.from(attachment.bucket).download(attachment.object_path);
+    if (error || !data) {
+      setErrorMessage("Não foi possível baixar o anexo liberado.");
+      return;
+    }
+    const url = URL.createObjectURL(data);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = attachment.original_name;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
@@ -985,6 +1115,17 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
                 <article key={message.id} className={`flex ${ownMessage ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[min(80%,42rem)] rounded-2xl px-4 py-3 shadow-sm ${ownMessage ? "bg-blue-700 text-white" : "border border-slate-200 bg-white text-slate-900"}`}>
                     <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>
+                    {attachmentStatuses[message.id] ? (
+                      <div className="mt-2 rounded-lg border border-white/20 bg-black/5 p-2 text-xs">
+                        <p>{attachmentStatuses[message.id].scan_status === "pending" ? "⏳ Em análise — arquivo em quarentena" : attachmentStatuses[message.id].scan_status === "clean" ? "✓ Liberado após verificação" : "⛔ Bloqueado / quarentena"}</p>
+                        {attachmentStatuses[message.id].scan_status === "clean" && attachmentStatuses[message.id].mime_type === "image/jpeg" && attachmentPreviewUrls[message.id] ? (
+                          <img src={attachmentPreviewUrls[message.id]} alt={attachmentStatuses[message.id].original_name} className="mt-2 max-h-56 max-w-full rounded-lg object-contain" />
+                        ) : null}
+                        {attachmentStatuses[message.id].scan_status === "clean" && attachmentStatuses[message.id].object_path ? (
+                          <button type="button" onClick={() => void downloadCleanAttachment(attachmentStatuses[message.id])} className="mt-2 font-semibold underline">Baixar arquivo verificado</button>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className={`mt-2 flex items-center justify-end gap-2 text-[10px] ${ownMessage ? "text-blue-100" : "text-slate-400"}`}>
                       <time>{new Date(message.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</time>
                       {ownMessage ? (() => {
@@ -1000,7 +1141,12 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
           )}
         </div>
 
-        <form onSubmit={sendMessage} className="flex gap-3 border-t border-slate-200 bg-white p-4">
+        {attachmentNotice ? <p role="status" className="border-t border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{attachmentNotice}</p> : null}
+        <form onSubmit={sendMessage} className="flex flex-wrap items-center gap-2 border-t border-slate-200 bg-white p-3 sm:gap-3 sm:p-4">
+          <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+            <input type="file" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" disabled={!selectedConversation || uploadingAttachment} onChange={(event) => void uploadAttachment(event)} className="sr-only" />
+            {uploadingAttachment ? "Enviando anexo..." : "📎 Anexar"}
+          </label>
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
