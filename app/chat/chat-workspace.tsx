@@ -99,12 +99,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
 
   useEffect(() => {
     const term = globalSearchTerm.trim();
-    if (term.length < 2) {
-      setGlobalSearchResults([]);
-      setGlobalSearchBusy(false);
-      setGlobalSearchError(null);
-      return;
-    }
+    if (term.length < 2) return;
 
     let active = true;
     const timeoutId = window.setTimeout(async () => {
@@ -601,12 +596,11 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
           id="global-search"
           value={globalSearchTerm}
           onFocus={() => setGlobalSearchOpen(true)}
-          onChange={(event) => { setGlobalSearchTerm(event.target.value); setGlobalSearchOpen(true); }}
+          onChange={(event) => { const value = event.target.value; setGlobalSearchTerm(value); setGlobalSearchOpen(true); if (value.trim().length < 2) { setGlobalSearchResults([]); setGlobalSearchError(null); setGlobalSearchBusy(false); } }}
           onKeyDown={(event) => { if (event.key === "Escape") setGlobalSearchOpen(false); }}
           maxLength={100}
           placeholder="Buscar funcionários, grupos e mensagens..."
           className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
-          aria-expanded={globalSearchOpen}
           aria-controls="global-search-results"
           autoComplete="off"
         />
