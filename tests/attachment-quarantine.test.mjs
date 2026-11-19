@@ -6,6 +6,7 @@ const migration = await readFile(new URL("../supabase/migrations/20261119205000_
 const chat = await readFile(new URL("../app/chat/chat-workspace.tsx", import.meta.url), "utf8");
 const admin = await readFile(new URL("../app/admin/admin-workspace.tsx", import.meta.url), "utf8");
 const deleteMigration = await readFile(new URL("../supabase/migrations/20261119205700_mark_messages_after_attachment_deletion.sql", import.meta.url), "utf8");
+const securityMigration = await readFile(new URL("../supabase/migrations/20261119205500_move_public_definers_to_private.sql", import.meta.url), "utf8");
 
 test("uploads are restricted to an authenticated member's own quarantine folder", () => {
   assert.match(migration, /bucket_id = 'chat-quarantine'/i);
@@ -46,4 +47,11 @@ test("admin UI does not permit release without a configured scanner", () => {
   assert.match(admin, /Liberar \(scanner pendente\)/);
   assert.match(admin, /Excluir definitivamente/);
   assert.match(admin, /admin_delete_attachment/);
+});
+
+test("privileged conversation and attachment writers are hidden in the private schema", () => {
+  assert.match(securityMigration, /create or replace function private\.create_conversation[\s\S]*?security definer/i);
+  assert.match(securityMigration, /create or replace function public\.create_conversation[\s\S]*?security invoker/i);
+  assert.match(securityMigration, /create or replace function private\.create_attachment_message[\s\S]*?security definer/i);
+  assert.match(securityMigration, /create or replace function public\.create_attachment_message[\s\S]*?language sql volatile security invoker/i);
 });
