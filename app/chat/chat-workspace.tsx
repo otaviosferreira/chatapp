@@ -272,10 +272,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   }, [supabase, userId, refreshConversationSummaries]);
 
   useEffect(() => {
-    if (!selectedConversationId) {
-      setAttachmentStatuses({});
-      return;
-    }
+    if (!selectedConversationId) return;
     let active = true;
     async function loadAttachmentStatuses() {
       const { data, error } = await supabase.rpc("get_message_attachment_status", {
@@ -574,7 +571,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     anchor.href = url;
     anchor.download = attachment.original_name;
     anchor.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
@@ -1111,18 +1108,19 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
           ) : (
             messages.map((message) => {
               const ownMessage = message.sender_id === userId;
+              const attachmentStatus = attachmentStatuses[message.id];
               return (
                 <article key={message.id} className={`flex ${ownMessage ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[min(80%,42rem)] rounded-2xl px-4 py-3 shadow-sm ${ownMessage ? "bg-blue-700 text-white" : "border border-slate-200 bg-white text-slate-900"}`}>
                     <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>
                     {attachmentStatuses[message.id] ? (
                       <div className="mt-2 rounded-lg border border-white/20 bg-black/5 p-2 text-xs">
-                        <p>{attachmentStatuses[message.id].scan_status === "pending" ? "⏳ Em análise — arquivo em quarentena" : attachmentStatuses[message.id].scan_status === "clean" ? "✓ Liberado após verificação" : "⛔ Bloqueado / quarentena"}</p>
-                        {attachmentStatuses[message.id].scan_status === "clean" && attachmentStatuses[message.id].mime_type === "image/jpeg" && attachmentPreviewUrls[message.id] ? (
-                          <img src={attachmentPreviewUrls[message.id]} alt={attachmentStatuses[message.id].original_name} className="mt-2 max-h-56 max-w-full rounded-lg object-contain" />
+                        <p>{attachmentStatus.scan_status === "pending" ? "⏳ Em análise — arquivo em quarentena" : attachmentStatus.scan_status === "clean" ? "✓ Liberado após verificação" : "⛔ Bloqueado / quarentena"}</p>
+                        {attachmentStatus.scan_status === "clean" && attachmentStatus.mime_type === "image/jpeg" && attachmentPreviewUrls[message.id] ? (
+                          <img src={attachmentPreviewUrls[message.id]} alt={attachmentStatus.original_name} className="mt-2 max-h-56 max-w-full rounded-lg object-contain" />
                         ) : null}
-                        {attachmentStatuses[message.id].scan_status === "clean" && attachmentStatuses[message.id].object_path ? (
-                          <button type="button" onClick={() => void downloadCleanAttachment(attachmentStatuses[message.id])} className="mt-2 font-semibold underline">Baixar arquivo verificado</button>
+                        {attachmentStatus.scan_status === "clean" && attachmentStatus.object_path ? (
+                          <button type="button" onClick={() => void downloadCleanAttachment(attachmentStatus)} className="mt-2 font-semibold underline">Baixar arquivo verificado</button>
                         ) : null}
                       </div>
                     ) : null}
