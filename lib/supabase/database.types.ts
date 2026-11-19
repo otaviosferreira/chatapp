@@ -416,6 +416,23 @@ export type Database = {
           created_at: string
         }[]
       }
+      get_conversation_summaries: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          conversation_id: string
+          conversation_type: Database["public"]["Enums"]["conversation_type"]
+          conversation_title: string | null
+          created_at: string
+          participant_name: string | null
+          participant_avatar_path: string | null
+          active_member_count: number
+          last_message_body: string | null
+          last_message_sender_name: string | null
+          last_message_created_at: string | null
+          last_attachment_mime_type: string | null
+          last_attachment_scan_status: string | null
+        }[]
+      }
       admin_get_settings: {
         Args: Record<PropertyKey, never>
         Returns: { setting_key: string; setting_value: Json; description: string; updated_at: string }[]
