@@ -89,8 +89,8 @@ begin
     raise exception 'forbidden' using errcode = '42501';
   end if;
   if jsonb_typeof(_settings) <> 'object'
-     or jsonb_object_length(_settings) < 1
-     or jsonb_object_length(_settings) > 5 then
+     or (select count(*) from jsonb_object_keys(_settings)) < 1
+     or (select count(*) from jsonb_object_keys(_settings)) > 5 then
     raise exception 'settings must be a non-empty object with at most five keys' using errcode = '22023';
   end if;
 
