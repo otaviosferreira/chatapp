@@ -14,14 +14,10 @@ function getAppOrigin(headerStore: Headers) {
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-
-  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || password.length < 1) {
-    redirect("/login?error=invalid");
-  }
+  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || password.length < 1) redirect("/login?error=invalid");
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-
   if (error) redirect("/login?error=credentials");
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -29,27 +25,17 @@ export async function signInAction(formData: FormData) {
     await supabase.auth.signOut();
     redirect("/login?error=credentials");
   }
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("status")
-    .eq("id", userData.user.id)
-    .maybeSingle();
-
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("status").eq("id", userData.user.id).maybeSingle();
   if (profileError || !profile || profile.status !== "active") {
     await supabase.auth.signOut();
     redirect("/login?error=pending");
   }
-
   redirect("/chat");
 }
 
 export async function forgotPasswordAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
-    redirect("/forgot-password?error=invalid");
-  }
-
+  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) redirect("/forgot-password?error=invalid");
   const headerStore = await headers();
   let redirectTo: string;
   try {
@@ -57,7 +43,6 @@ export async function forgotPasswordAction(formData: FormData) {
   } catch {
     redirect("/forgot-password?error=configuration");
   }
-
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) redirect("/forgot-password?error=send");
@@ -67,14 +52,10 @@ export async function forgotPasswordAction(formData: FormData) {
 export async function updatePasswordAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const confirmation = String(formData.get("confirmation") ?? "");
-  if (password.length < 12 || password.length > 128 || password !== confirmation) {
-    redirect("/update-password?error=invalid");
-  }
-
+  if (password.length < 12 || password.length > 128 || password !== confirmation) redirect("/update-password?error=invalid");
   const supabase = await createClient();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) redirect("/login?error=link_invalid");
-
   const { error } = await supabase.auth.updateUser({ password });
   if (error) redirect("/update-password?error=update");
   redirect("/login?password_updated=1");
