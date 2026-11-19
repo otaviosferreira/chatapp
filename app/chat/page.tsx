@@ -40,14 +40,14 @@ export default async function ChatPage() {
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link href="/chat" className="flex min-w-0 items-center gap-3" aria-label="ChatApp, página inicial">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-800 text-sm font-bold tracking-tight text-white shadow-sm">C</span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-700 text-sm font-bold tracking-tight text-white shadow-sm">C</span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-bold tracking-tight text-slate-950">ChatApp</span>
-              <span className="block truncate text-xs text-slate-500">Comunicação corporativa</span>
+              <span className="block truncate text-sm font-bold tracking-tight text-slate-950">CALUNGA</span>
+              <span className="block truncate text-xs text-slate-500">CHAT CORPORATIVO</span>
             </span>
           </Link>
           <nav aria-label="Navegação principal" className="flex shrink-0 items-center gap-2 sm:gap-4">
-            {adminRole ? (
+            <span className="hidden rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-[10px] font-bold tracking-wider text-red-800 md:inline-flex">AMBIENTE AUDITADO</span>\n            {adminRole ? (
               <Link href="/admin" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-blue-800">
                 Administração
               </Link>
