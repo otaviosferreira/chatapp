@@ -882,6 +882,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
               {selectedConversation ? selectedConversationTitle : "Selecione uma conversa"}
             </h2>
             <p className="mt-1 text-xs text-slate-500">
+              {selectedConversation?.type === "group" ? `Grupo · ${selectedSummary?.active_member_count ?? activeMemberIds.length} participantes · ` : selectedConversation ? "Conversa individual · " : ""}
               Sincronização: {selectedConversationId ? (realtimeStatus === "subscribed" ? "conectada" : realtimeStatus) : "desconectada"}
             </p>
           </div>
