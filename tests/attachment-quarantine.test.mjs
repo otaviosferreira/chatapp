@@ -16,7 +16,7 @@ test("attachment registration validates MIME, size, hash and object path", () =>
   assert.match(migration, /application\/pdf','image\/jpeg/i);
   assert.match(migration, /_size_bytes > 5242880/i);
   assert.match(migration, /_sha256 !~ '\^\[0-9a-f\]\{64\}\$'/i);
-  assert.match(migration, /scan_status\)\s*values[\s\S]*?'pending'/i);
+  assert.match(migration, /scan_status\s*\)\s*values[\s\S]*?'pending'/i);
 });
 
 test("ordinary members receive attachment status but not quarantine object paths", () => {
