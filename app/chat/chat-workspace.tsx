@@ -534,7 +534,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       setErrorMessage("Não foi possível adicionar o participante. Verifique suas permissões.");
     } else {
       setActiveMemberIds((current) => [...new Set([...current, newGroupMemberId])]);
-      void refreshConversationSummaries();\n      void refreshConversationSummaries();
+      void refreshConversationSummaries();
       setNewGroupMemberId("");
     }
     setUpdatingMembers(false);
@@ -555,7 +555,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       setErrorMessage("Não foi possível remover o participante. Verifique suas permissões.");
     } else {
       setActiveMemberIds((current) => current.filter((id) => id !== profileId));
-      void refreshConversationSummaries();\n      void refreshConversationSummaries();
+      void refreshConversationSummaries();
     }
     setUpdatingMembers(false);
   }
