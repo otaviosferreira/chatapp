@@ -13,7 +13,8 @@ export function AdminWorkspace({currentUserId}:{currentUserId:string}) {
  const [notice,setNotice]=useState<string|null>(null);
  const [inviteName,setInviteName]=useState("");
  const [inviteEmail,setInviteEmail]=useState("");
- const [inviteBusy,setInviteBusy]=useState(false);\n const [pendingStatus,setPendingStatus]=useState<{id:string;status:"active"|"disabled"}|null>(null);
+ const [inviteBusy,setInviteBusy]=useState(false);
+ const [pendingStatus,setPendingStatus]=useState<{id:string;status:"active"|"disabled"}|null>(null);
  const load=useCallback(async()=>{
   const [p,r]=await Promise.all([
    supabase.from("profiles").select("id,full_name,corporate_email,employee_code,status,disabled_at").order("full_name"),
