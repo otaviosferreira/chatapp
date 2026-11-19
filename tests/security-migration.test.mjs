@@ -6,6 +6,8 @@ const readMigration = (name) => readFile(new URL(`../supabase/migrations/${name}
 const privateFunctions = await readMigration("20261119011619_revoke_public_private_function_execute.sql");
 const anonPrivileges = await readMigration("20261119011810_revoke_anon_table_and_excess_authenticated_privileges.sql");
 const profileRead = await readMigration("20261119011824_grant_authenticated_profile_select.sql");
+const defaultFunctions = await readMigration("20261119011915_revoke_default_public_function_execute.sql");
+const auditRpc = await readMigration("20261119011943_restrict_conversation_audit_rpc.sql");
 
 test("revokes default function execution from PUBLIC and anon in private schema", () => {
   assert.match(privateFunctions, /REVOKE\s+ALL\s+ON\s+ALL\s+FUNCTIONS\s+IN\s+SCHEMA\s+private\s+FROM\s+PUBLIC\s*;/i);
@@ -34,4 +36,14 @@ test("removes anonymous table and sequence privileges and maintenance rights", (
 
 test("allows authenticated profile reads while retaining RLS policies", () => {
   assert.match(profileRead, /GRANT\s+SELECT\s+ON\s+TABLE\s+public\.profiles\s+TO\s+authenticated\s*;/i);
+});
+
+test("restricts future public/private function execution by default", () => {
+  assert.equal((defaultFunctions.match(/REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;/g) ?? []).length, 2);
+  assert.equal((defaultFunctions.match(/REVOKE EXECUTE ON FUNCTIONS FROM anon;/g) ?? []).length, 2);
+  assert.equal((defaultFunctions.match(/REVOKE EXECUTE ON FUNCTIONS FROM authenticated;/g) ?? []).length, 2);
+});
+
+test("prevents direct authenticated execution of the audit event helper", () => {
+  assert.match(auditRpc, /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+private\.log_conversation_event\(text,\s*uuid,\s*jsonb\)\s+FROM\s+authenticated/i);
 });
