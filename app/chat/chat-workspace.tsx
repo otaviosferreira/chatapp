@@ -194,6 +194,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       }
       setConversations((current) => [conversation, ...current.filter((item) => item.id !== conversation.id)]);
       setSelectedConversationId(conversation.id);
+      void refreshConversationSummaries();
     } else if (result.conversation_id) {
       setSelectedConversationId(result.conversation_id);
     }
@@ -254,6 +255,8 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       }
 
       setDirectory(directoryResult.data ?? []);
+      await refreshConversationSummaries();
+      if (!active) return;
       setLoading(false);
     }
 
@@ -261,7 +264,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     return () => {
       active = false;
     };
-  }, [supabase, userId]);
+  }, [supabase, userId, refreshConversationSummaries]);
 
   useEffect(() => {
     const activeConversationId = selectedConversationId ?? "";
@@ -293,6 +296,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
             }
           }
           void refreshUnreadCounts();
+          void refreshConversationSummaries();
         }
       )
       .on(
@@ -468,6 +472,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       setMessages((current) =>
         current.some((item) => item.id === data.id) ? current : [...current, data]
       );
+      void refreshConversationSummaries();
       setDraft("");
     }
 
@@ -503,6 +508,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
         [refreshed, ...current.filter((item) => item.id !== refreshed.id)]
       );
       setSelectedConversationId(refreshed.id);
+      void refreshConversationSummaries();
       setNewParticipantId("");
     } else {
       setErrorMessage("Conversa criada, mas não foi possível atualizar a lista. Atualize a página.");
@@ -527,7 +533,8 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     if (error) {
       setErrorMessage("Não foi possível adicionar o participante. Verifique suas permissões.");
     } else {
-      setActiveMemberIds((current) => [...new Set([...current, newGroupMemberId])]);\n      void refreshConversationSummaries();
+      setActiveMemberIds((current) => [...new Set([...current, newGroupMemberId])]);
+      void refreshConversationSummaries();\n      void refreshConversationSummaries();
       setNewGroupMemberId("");
     }
     setUpdatingMembers(false);
@@ -547,7 +554,8 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     if (error) {
       setErrorMessage("Não foi possível remover o participante. Verifique suas permissões.");
     } else {
-      setActiveMemberIds((current) => current.filter((id) => id !== profileId));\n      void refreshConversationSummaries();
+      setActiveMemberIds((current) => current.filter((id) => id !== profileId));
+      void refreshConversationSummaries();\n      void refreshConversationSummaries();
     }
     setUpdatingMembers(false);
   }
@@ -572,6 +580,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       setActiveMemberIds([]);
       setMyMemberRole(null);
       setNewGroupMemberId("");
+      void refreshConversationSummaries();
     }
     setUpdatingMembers(false);
   }
@@ -605,6 +614,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     if (!refreshError && refreshed) {
       setConversations((current) => [refreshed, ...current.filter((item) => item.id !== refreshed.id)]);
       setSelectedConversationId(refreshed.id);
+      void refreshConversationSummaries();
       setGroupTitle("");
       setGroupMemberIds([]);
     } else {
