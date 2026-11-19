@@ -34,6 +34,8 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState("connecting");
   const [searchTerm, setSearchTerm] = useState("");
+  const [conversationQuery, setConversationQuery] = useState("");
+  const [conversationFilter, setConversationFilter] = useState<"all" | "direct" | "group" | "unread">("all");
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -503,10 +505,19 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   }
 
   const selectedConversation = conversations.find((item) => item.id === selectedConversationId);
+  const visibleConversations = useMemo(() => conversations.filter((conversation) => {
+    const query = conversationQuery.trim().toLocaleLowerCase("pt-BR");
+    const matchesQuery = !query || (conversation.title ?? "Conversa individual").toLocaleLowerCase("pt-BR").includes(query);
+    const matchesFilter = conversationFilter === "all"
+      || (conversationFilter === "direct" && conversation.type === "direct")
+      || (conversationFilter === "group" && conversation.type === "group")
+      || (conversationFilter === "unread" && (unreadCounts[conversation.id] ?? 0) > 0);
+    return matchesQuery && matchesFilter;
+  }), [conversations, conversationQuery, conversationFilter, unreadCounts]);
 
   return (
-    <section className="mx-auto grid min-h-[calc(100vh-81px)] max-w-7xl grid-cols-1 gap-4 p-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="flex min-h-[280px] flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="mx-auto grid min-h-[calc(100vh-81px)] max-w-[1600px] grid-cols-1 gap-4 p-4 lg:grid-cols-[350px_minmax(0,1fr)] xl:p-6">
+      <aside className="flex min-h-[280px] flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">Conversas</h2>
           <p className="mt-1 text-xs text-slate-500">Somente conversas privadas das quais você participa.</p>
@@ -616,6 +627,22 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
           </button>
         </form>
 
+        <div className="mb-3 space-y-3">
+          <label htmlFor="conversation-filter-search" className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Localizar conversa</label>
+          <input id="conversation-filter-search" value={conversationQuery} onChange={(event) => setConversationQuery(event.target.value)} placeholder="Nome do contato ou grupo" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <div className="grid grid-cols-4 gap-1" aria-label="Filtrar conversas">
+            {([
+              ["all", "Todas"],
+              ["direct", "Individuais"],
+              ["group", "Grupos"],
+              ["unread", "Não lidas"]
+            ] as const).map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={conversationFilter === value} onClick={() => setConversationFilter(value)} className={`rounded-lg px-2 py-2 text-[11px] font-semibold ${conversationFilter === value ? "bg-red-50 text-red-800 ring-1 ring-red-200" : "text-slate-500 hover:bg-slate-50"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
           {loading ? (
             <p className="py-4 text-sm text-slate-500">Carregando conversas...</p>
