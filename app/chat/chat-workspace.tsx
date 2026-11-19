@@ -7,6 +7,7 @@ import type { Tables } from "@/lib/supabase/database.types";
 type Conversation = Tables<"conversations">;
 type Message = Tables<"messages">;
 type DirectoryProfile = Pick<Tables<"profiles">, "id" | "full_name">;
+type GlobalSearchResult = { category: string; id: string; title: string; subtitle: string | null; snippet: string | null; conversation_id: string | null; created_at: string };
 
 type ChatWorkspaceProps = {
   userId: string;
@@ -44,6 +45,11 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [globalSearchTerm, setGlobalSearchTerm] = useState("");
+  const [globalSearchResults, setGlobalSearchResults] = useState<GlobalSearchResult[]>([]);
+  const [globalSearchBusy, setGlobalSearchBusy] = useState(false);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [globalSearchError, setGlobalSearchError] = useState<string | null>(null);
 
   const markMessagesRead = useCallback(async (items: Message[]) => {
     const incoming = items.filter((item) => item.sender_id !== userId);
@@ -89,6 +95,78 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   async function requestNotifications() {
     if (!("Notification" in window)) return;
     setNotificationPermission(await Notification.requestPermission());
+  }
+
+  useEffect(() => {
+    const term = globalSearchTerm.trim();
+    if (term.length < 2) {
+      setGlobalSearchResults([]);
+      setGlobalSearchBusy(false);
+      setGlobalSearchError(null);
+      return;
+    }
+
+    let active = true;
+    const timeoutId = window.setTimeout(async () => {
+      setGlobalSearchBusy(true);
+      setGlobalSearchError(null);
+      const { data, error } = await supabase.rpc("search_chatapp", { _query: term, _limit: 6 });
+      if (!active) return;
+      if (error) {
+        setGlobalSearchResults([]);
+        setGlobalSearchError("Não foi possível concluir a pesquisa. Tente novamente.");
+      } else {
+        setGlobalSearchResults((data ?? []) as GlobalSearchResult[]);
+      }
+      setGlobalSearchBusy(false);
+    }, 350);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [globalSearchTerm, supabase]);
+
+  function highlightSearchTerm(value: string, term: string) {
+    const index = value.toLocaleLowerCase("pt-BR").indexOf(term.toLocaleLowerCase("pt-BR"));
+    if (index < 0 || !term) return value;
+    return (
+      <>
+        {value.slice(0, index)}
+        <mark className="rounded bg-amber-100 px-0.5 text-inherit">{value.slice(index, index + term.length)}</mark>
+        {value.slice(index + term.length)}
+      </>
+    );
+  }
+
+  async function openGlobalSearchResult(result: GlobalSearchResult) {
+    setGlobalSearchOpen(false);
+    if (result.category === "Funcionários") {
+      if (result.id === userId) return;
+      const { data: conversationId, error } = await supabase.rpc("create_conversation", {
+        _type: "direct",
+        _member_ids: [result.id]
+      });
+      if (error || !conversationId) {
+        setErrorMessage("Não foi possível abrir uma conversa com este funcionário.");
+        return;
+      }
+      const { data: conversation, error: conversationError } = await supabase
+        .from("conversations")
+        .select("id,type,title,created_by,direct_key,created_at,archived_at")
+        .eq("id", conversationId)
+        .single();
+      if (conversationError || !conversation) {
+        setErrorMessage("A conversa foi localizada, mas não foi possível carregá-la.");
+        return;
+      }
+      setConversations((current) => [conversation, ...current.filter((item) => item.id !== conversation.id)]);
+      setSelectedConversationId(conversation.id);
+    } else if (result.conversation_id) {
+      setSelectedConversationId(result.conversation_id);
+    }
+    setGlobalSearchTerm("");
+    setGlobalSearchResults([]);
   }
 
   useEffect(() => {
@@ -516,7 +594,49 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   }), [conversations, conversationQuery, conversationFilter, unreadCounts]);
 
   return (
-    <section className="mx-auto grid min-h-[calc(100vh-81px)] max-w-[1600px] grid-cols-1 gap-4 p-4 lg:grid-cols-[350px_minmax(0,1fr)] xl:p-6">
+    <section className="mx-auto max-w-[1600px] p-4 xl:p-6">
+      <div className="relative z-30 mb-4 max-w-3xl">
+        <label htmlFor="global-search" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Pesquisa global</label>
+        <input
+          id="global-search"
+          value={globalSearchTerm}
+          onFocus={() => setGlobalSearchOpen(true)}
+          onChange={(event) => { setGlobalSearchTerm(event.target.value); setGlobalSearchOpen(true); }}
+          onKeyDown={(event) => { if (event.key === "Escape") setGlobalSearchOpen(false); }}
+          maxLength={100}
+          placeholder="Buscar funcionários, grupos e mensagens..."
+          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+          aria-expanded={globalSearchOpen}
+          aria-controls="global-search-results"
+          autoComplete="off"
+        />
+        {globalSearchOpen && globalSearchTerm.trim().length >= 2 ? (
+          <div id="global-search-results" className="absolute left-0 right-0 top-full mt-2 max-h-[min(70vh,520px)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl" role="region" aria-label="Resultados da pesquisa">
+            {globalSearchBusy ? <p className="p-3 text-sm text-slate-500">Pesquisando...</p> : null}
+            {globalSearchError ? <p role="alert" className="p-3 text-sm text-red-700">{globalSearchError}</p> : null}
+            {!globalSearchBusy && !globalSearchError && globalSearchResults.length === 0 ? <p className="p-3 text-sm text-slate-500">Nenhum resultado encontrado.</p> : null}
+            {(["Funcionários", "Grupos", "Mensagens"] as const).map((category) => {
+              const results = globalSearchResults.filter((item) => item.category === category);
+              if (results.length === 0) return null;
+              return (
+                <section key={category} className="mb-2 last:mb-0">
+                  <h3 className="px-2 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">{category}</h3>
+                  {results.map((result) => (
+                    <button key={`${result.category}-${result.id}`} type="button" onClick={() => void openGlobalSearchResult(result)} className="block w-full rounded-lg px-3 py-3 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
+                      <span className="block truncate text-sm font-semibold text-slate-900">{highlightSearchTerm(result.title, globalSearchTerm.trim())}</span>
+                      {result.subtitle ? <span className="mt-0.5 block truncate text-xs text-slate-500">{result.subtitle}</span> : null}
+                      {result.snippet ? <span className="mt-1 block line-clamp-2 text-xs text-slate-600">{highlightSearchTerm(result.snippet, globalSearchTerm.trim())}</span> : null}
+                      {category === "Mensagens" ? <time className="mt-1 block text-[10px] text-slate-400">{new Date(result.created_at).toLocaleString("pt-BR")}</time> : null}
+                    </button>
+                  ))}
+                </section>
+              );
+            })}
+          </div>
+        ) : null}
+        <p className="mt-1 text-[11px] text-slate-400">A pesquisa respeita as conversas e os funcionários disponíveis para sua conta.</p>
+      </div>
+      <div className="grid min-h-[calc(100vh-170px)] grid-cols-1 gap-4 lg:grid-cols-[350px_minmax(0,1fr)]">
       <aside className="flex min-h-[280px] flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">Conversas</h2>
@@ -648,8 +768,10 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
             <p className="py-4 text-sm text-slate-500">Carregando conversas...</p>
           ) : conversations.length === 0 ? (
             <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Você ainda não participa de nenhuma conversa.</p>
+          ) : visibleConversations.length === 0 ? (
+            <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Nenhuma conversa corresponde ao filtro selecionado.</p>
           ) : (
-            conversations.map((conversation) => (
+            visibleConversations.map((conversation) => (
               <button
                 key={conversation.id}
                 type="button"
@@ -813,6 +935,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
           </button>
         </form>
       </section>
+      </div>
     </section>
   );
 }
