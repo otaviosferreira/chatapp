@@ -36,6 +36,16 @@
 | SQA-19 | Auditoria | TI ativa/desativa perfil, muda papel ou envia convite | Evento correspondente fica registrado na trilha privada | Pendente |
 | SQA-20 | Limite/Regressão | Grupo excede 50 membros ou conversa direta excede 2 | Operação rejeitada pelo banco | Pendente |
 
+## Verificações automatizadas executadas em 2026-11-19
+
+| ID | Verificação | Resultado | Evidência |
+|---|---|---|---|
+| DB-SEC-01 | Nenhuma função do schema `private` executável por `anon` | Aprovado | Consulta `has_function_privilege('anon', ...)` após migração `20261119011619` retornou `false` para todas as funções auditadas. |
+| DB-SEC-02 | Funções auxiliares RLS necessárias disponíveis a `authenticated` | Aprovado | Consulta de privilégios confirmou `EXECUTE` para `can_manage_conversation`, `can_view_profile`, `has_role`, `is_active_profile`, `is_active_user` e `is_conversation_member`. |
+| DB-SEC-03 | Funções de trigger sem execução direta por usuários | Aprovado | `audit_group_member_removal`, `audit_message_insert`, `enforce_conversation_member_limit`, `handle_new_auth_user`, `touch_updated_at` e `validate_direct_conversation_insert` retornaram `false` para `authenticated` e `anon`. |
+
+Essas verificações de privilégios não substituem testes de RLS com identidades reais independentes. Os 20 cenários funcionais abaixo continuam pendentes até execução autenticada reproduzível.
+
 ## Evidências a coletar
 Para cada caso executado:
 1. Identificador da conta sintética e papel atribuído (não registrar senhas/tokens).
