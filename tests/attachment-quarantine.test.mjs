@@ -7,6 +7,7 @@ const chat = await readFile(new URL("../app/chat/chat-workspace.tsx", import.met
 const admin = await readFile(new URL("../app/admin/admin-workspace.tsx", import.meta.url), "utf8");
 const deleteMigration = await readFile(new URL("../supabase/migrations/20261119205700_mark_messages_after_attachment_deletion.sql", import.meta.url), "utf8");
 const securityMigration = await readFile(new URL("../supabase/migrations/20261119205500_move_public_definers_to_private.sql", import.meta.url), "utf8");
+const storageCleanupMigration = await readFile(new URL("../supabase/migrations/20261119205800_require_storage_cleanup_before_attachment_metadata_delete.sql", import.meta.url), "utf8");
 
 test("uploads are restricted to an authenticated member's own quarantine folder", () => {
   assert.match(migration, /bucket_id = 'chat-quarantine'/i);
@@ -54,4 +55,8 @@ test("privileged conversation and attachment writers are hidden in the private s
   assert.match(securityMigration, /create or replace function public\.create_conversation[\s\S]*?security invoker/i);
   assert.match(securityMigration, /create or replace function private\.create_attachment_message[\s\S]*?security definer/i);
   assert.match(securityMigration, /create or replace function public\.create_attachment_message[\s\S]*?language sql volatile security invoker/i);
+});
+
+test("attachment metadata cannot be deleted while the Storage object still exists", () => {
+  assert.match(storageCleanupMigration, /storage\.objects[\s\S]*?storage object must be removed before deleting attachment metadata/i);
 });
