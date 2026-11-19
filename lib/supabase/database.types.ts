@@ -449,6 +449,22 @@ export type Database = {
         Args: { _from?: string | null; _to?: string | null; _actor?: string | null; _event?: string | null; _outcome?: string | null; _page?: number; _page_size?: number }
         Returns: { id: string; source: string; actor_profile_id: string | null; actor_name: string; event_type: string; outcome: string; target_profile_id: string | null; target_name: string | null; reason: string | null; metadata: Json; occurred_at: string; total_count: number }[]
       }
+      create_attachment_message: {
+        Args: { _conversation_id: string; _client_message_id: string; _original_name: string; _mime_type: string; _size_bytes: number; _sha256: string; _object_path: string }
+        Returns: { id: string; conversation_id: string; sender_id: string; client_message_id: string; body: string; reply_to_id: string | null; created_at: string; attachment_id: string; scan_status: string }[]
+      }
+      get_message_attachment_status: {
+        Args: { _conversation_id: string }
+        Returns: { message_id: string; attachment_id: string; original_name: string; mime_type: string; size_bytes: number; scan_status: string; bucket: string; object_path: string | null }[]
+      }
+      admin_list_attachments: {
+        Args: { _status?: string | null; _page?: number; _page_size?: number }
+        Returns: { id: string; conversation_id: string; message_id: string; uploader_id: string; uploader_name: string; original_name: string; mime_type: string; size_bytes: number; scan_status: string; bucket: string; object_path: string; created_at: string; total_count: number }[]
+      }
+      admin_delete_attachment: {
+        Args: { _attachment_id: string; _reason: string }
+        Returns: undefined
+      }
       admin_set_profile_status: {
         Args: {
           _profile_id: string
