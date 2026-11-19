@@ -13,7 +13,7 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
-export default {
+const handler = {
   fetch: async (req: Request) => {
     if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
     if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -58,3 +58,5 @@ export default {
     return json({ ok: true, profile_id: data.user.id });
   },
 };
+
+export default handler;
