@@ -45,8 +45,10 @@ const handler = {
     const domain = email.split("@")[1];
     if (!allowedDomains.includes(domain)) return json({ error: "email_domain_not_allowed" }, 422);
 
+    const appBaseUrl = Deno.env.get("APP_BASE_URL") ?? "https://chatapp-git-feat-foundatio-a9e755-otavioferreira-5984s-projects.vercel.app";
     const { data, error } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { full_name: fullName },
+      redirectTo: new URL("/auth/complete?next=/update-password", appBaseUrl).toString(),
     });
     if (error || !data.user) return json({ error: "invite_failed" }, 400);
 
