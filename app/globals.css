@@ -97,10 +97,10 @@ button, a, input, textarea, select {
 }
 ::selection { background: #ffe4e6; color: #881337; }
 .bg-blue-800, .bg-blue-700 { background-color: #b5121b !important; }
-.hover\\:bg-blue-800:hover, .hover\\:bg-blue-700:hover { background-color: #8f0d15 !important; }
+.hover\:bg-blue-800:hover, .hover\:bg-blue-700:hover { background-color: #8f0d15 !important; }
 .text-blue-800, .text-blue-700, .text-blue-600 { color: #a30f18 !important; }
 .border-blue-200, .border-blue-300 { border-color: #fecdd3 !important; }
 .bg-blue-50 { background-color: #fff1f2 !important; }
 .ring-blue-200 { --tw-ring-color: #fecdd3 !important; }
-.focus\\:border-blue-600:focus { border-color: #b5121b !important; }
-.focus\\:ring-blue-100:focus { --tw-ring-color: #ffe4e6 !important; }
+.focus\:border-blue-600:focus { border-color: #b5121b !important; }
+.focus\:ring-blue-100:focus { --tw-ring-color: #ffe4e6 !important; }
