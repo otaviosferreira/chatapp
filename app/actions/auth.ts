@@ -14,7 +14,7 @@ function getAppOrigin(headerStore: Headers) {
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || password.length < 1) redirect("/login?error=invalid");
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 1) redirect("/login?error=invalid");
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -35,7 +35,7 @@ export async function signInAction(formData: FormData) {
 
 export async function forgotPasswordAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) redirect("/forgot-password?error=invalid");
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) redirect("/forgot-password?error=invalid");
   const headerStore = await headers();
   let redirectTo: string;
   try {
