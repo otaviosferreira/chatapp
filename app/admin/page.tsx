@@ -36,10 +36,10 @@ export default async function AdminPage() {
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link href="/admin" className="flex min-w-0 items-center gap-3" aria-label="ChatApp, administração">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-800 text-sm font-bold tracking-tight text-white shadow-sm">C</span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-700 text-sm font-bold tracking-tight text-white shadow-sm">C</span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-bold tracking-tight text-slate-950">ChatApp</span>
-              <span className="block truncate text-xs text-slate-500">Central de administração</span>
+              <span className="block truncate text-sm font-bold tracking-tight text-slate-950">CALUNGA</span>
+              <span className="block truncate text-xs text-slate-500">PAINEL DE TI</span>
             </span>
           </Link>
           <nav aria-label="Navegação administrativa" className="flex shrink-0 items-center gap-2 sm:gap-4">
