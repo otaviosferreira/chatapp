@@ -521,7 +521,9 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       const digest = await crypto.subtle.digest("SHA-256", bytes);
       const sha256 = Array.from(new Uint8Array(digest))
         .map((byte) => byte.toString(16).padStart(2, "0")).join("");
-      const safeName = file.name.normalize("NFKC").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 100);
+      const rawBaseName = file.name.slice(0, file.name.lastIndexOf("."));
+      const safeBaseName = rawBaseName.normalize("NFKC").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80) || "anexo";
+      const safeName = `${safeBaseName}.${extension}`;
       const objectPath = `${selectedConversationId}/${userId}/${crypto.randomUUID()}-${safeName}`;
 
       const { error: uploadError } = await supabase.storage.from("chat-quarantine").upload(objectPath, file, {
@@ -541,7 +543,10 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
         _object_path: objectPath
       });
       if (registerError || !data?.[0]) {
-        await supabase.storage.from("chat-quarantine").remove([objectPath]);
+        const { error: cleanupError } = await supabase.storage.from("chat-quarantine").remove([objectPath]);
+        if (cleanupError) {
+          throw new Error("O registro do anexo falhou e o arquivo temporário permanece em quarentena. Solicite a limpeza à TI.");
+        }
         throw new Error("O arquivo foi enviado, mas não foi possível registrar o anexo. O envio temporário foi removido.");
       }
 
