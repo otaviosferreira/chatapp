@@ -8,6 +8,37 @@ type Conversation = Tables<"conversations">;
 type Message = Tables<"messages">;
 type DirectoryProfile = Pick<Tables<"profiles">, "id" | "full_name">;
 type GlobalSearchResult = { category: string; id: string; title: string; subtitle: string | null; snippet: string | null; conversation_id: string | null; created_at: string };
+type ConversationSummary = {
+  conversation_id: string;
+  conversation_type: "direct" | "group";
+  conversation_title: string | null;
+  created_at: string;
+  participant_name: string | null;
+  participant_avatar_path: string | null;
+  active_member_count: number;
+  last_message_body: string | null;
+  last_message_sender_name: string | null;
+  last_message_created_at: string | null;
+  last_attachment_mime_type: string | null;
+  last_attachment_scan_status: string | null;
+};
+
+function formatConversationTime(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) {
+    return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "Ontem";
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
+function getInitials(value: string) {
+  return value.trim().split(/\\s+/).slice(0, 2).map((part) => part[0] ?? "").join("").toLocaleUpperCase("pt-BR") || "C";
+}
 
 type ChatWorkspaceProps = {
   userId: string;
@@ -16,7 +47,7 @@ type ChatWorkspaceProps = {
 
 export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);\n  const [conversationSummaries, setConversationSummaries] = useState<ConversationSummary[]>([]);
   const [directory, setDirectory] = useState<DirectoryProfile[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -50,6 +81,11 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [globalSearchBusy, setGlobalSearchBusy] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchError, setGlobalSearchError] = useState<string | null>(null);
+
+  const refreshConversationSummaries = useCallback(async () => {
+    const { data, error } = await supabase.rpc("get_conversation_summaries");
+    if (!error) setConversationSummaries((data ?? []) as ConversationSummary[]);
+  }, [supabase]);
 
   const markMessagesRead = useCallback(async (items: Message[]) => {
     const incoming = items.filter((item) => item.sender_id !== userId);
@@ -304,7 +340,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [supabase, selectedConversationId, userId, conversations, markMessagesRead, refreshUnreadCounts]);
+  }, [supabase, selectedConversationId, userId, conversations, markMessagesRead, refreshUnreadCounts, refreshConversationSummaries]);
 
   useEffect(() => { void Promise.resolve().then(refreshUnreadCounts); }, [refreshUnreadCounts, selectedConversationId]);
 
@@ -490,7 +526,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     if (error) {
       setErrorMessage("Não foi possível adicionar o participante. Verifique suas permissões.");
     } else {
-      setActiveMemberIds((current) => [...new Set([...current, newGroupMemberId])]);
+      setActiveMemberIds((current) => [...new Set([...current, newGroupMemberId])]);\n      void refreshConversationSummaries();
       setNewGroupMemberId("");
     }
     setUpdatingMembers(false);
@@ -510,7 +546,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     if (error) {
       setErrorMessage("Não foi possível remover o participante. Verifique suas permissões.");
     } else {
-      setActiveMemberIds((current) => current.filter((id) => id !== profileId));
+      setActiveMemberIds((current) => current.filter((id) => id !== profileId));\n      void refreshConversationSummaries();
     }
     setUpdatingMembers(false);
   }
@@ -578,15 +614,28 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   }
 
   const selectedConversation = conversations.find((item) => item.id === selectedConversationId);
+  const summaryByConversationId = useMemo(
+    () => new Map(conversationSummaries.map((summary) => [summary.conversation_id, summary])),
+    [conversationSummaries]
+  );
+  const selectedSummary = selectedConversationId ? summaryByConversationId.get(selectedConversationId) : undefined;
+  const selectedConversationTitle = selectedConversation?.type === "group"
+    ? selectedConversation.title ?? "Grupo privado"
+    : selectedSummary?.participant_name ?? "Conversa individual";
   const visibleConversations = useMemo(() => conversations.filter((conversation) => {
+    const summary = summaryByConversationId.get(conversation.id);
+    const title = conversation.type === "group"
+      ? conversation.title ?? "Grupo privado"
+      : summary?.participant_name ?? "Conversa individual";
+    const preview = summary?.last_message_body ?? "";
     const query = conversationQuery.trim().toLocaleLowerCase("pt-BR");
-    const matchesQuery = !query || (conversation.title ?? "Conversa individual").toLocaleLowerCase("pt-BR").includes(query);
+    const matchesQuery = !query || title.toLocaleLowerCase("pt-BR").includes(query) || preview.toLocaleLowerCase("pt-BR").includes(query);
     const matchesFilter = conversationFilter === "all"
       || (conversationFilter === "direct" && conversation.type === "direct")
       || (conversationFilter === "group" && conversation.type === "group")
       || (conversationFilter === "unread" && (unreadCounts[conversation.id] ?? 0) > 0);
     return matchesQuery && matchesFilter;
-  }), [conversations, conversationQuery, conversationFilter, unreadCounts]);
+  }), [conversations, conversationQuery, conversationFilter, unreadCounts, summaryByConversationId]);
 
   return (
     <section className="mx-auto max-w-[1600px] p-4 xl:p-6">
@@ -765,24 +814,52 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
           ) : visibleConversations.length === 0 ? (
             <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Nenhuma conversa corresponde ao filtro selecionado.</p>
           ) : (
-            visibleConversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                onClick={() => setSelectedConversationId(conversation.id)}
-                className={`w-full rounded-lg px-3 py-3 text-left transition ${selectedConversationId === conversation.id ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-slate-50"}`}
-              >
-                <span className="block truncate text-sm font-semibold text-slate-900">
-                  {conversation.title ?? "Conversa individual"}
-                </span>
-                <span className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-500">
-                  <span>{conversation.type === "group" ? "Grupo privado" : "Conversa privada"}</span>
-                  {(unreadCounts[conversation.id] ?? 0) > 0 ? (
-                    <span className="rounded-full bg-blue-700 px-2 py-0.5 text-[10px] font-semibold text-white">{unreadCounts[conversation.id]}</span>
-                  ) : null}
-                </span>
-              </button>
-            ))
+            visibleConversations.map((conversation) => {
+              const summary = summaryByConversationId.get(conversation.id);
+              const title = conversation.type === "group"
+                ? conversation.title ?? "Grupo privado"
+                : summary?.participant_name ?? "Conversa individual";
+              const attachmentStatus = summary?.last_attachment_scan_status;
+              const attachmentPreview = attachmentStatus === "pending"
+                ? "📎 Anexo em análise"
+                : attachmentStatus === "rejected"
+                  ? "⛔ Anexo bloqueado"
+                  : attachmentStatus === "clean"
+                    ? (summary?.last_attachment_mime_type === "application/pdf" ? "📄 Documento" : "🖼️ Imagem")
+                    : null;
+              const messagePreview = attachmentPreview ?? summary?.last_message_body ?? "Nenhuma mensagem ainda";
+              const preview = conversation.type === "group" && summary?.last_message_sender_name
+                ? `${summary.last_message_sender_name}: ${messagePreview}`
+                : messagePreview;
+              const timestamp = formatConversationTime(summary?.last_message_created_at ?? summary?.created_at ?? conversation.created_at);
+              return (
+                <button
+                  key={conversation.id}
+                  type="button"
+                  onClick={() => setSelectedConversationId(conversation.id)}
+                  className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${selectedConversationId === conversation.id ? "bg-red-50 ring-1 ring-red-200" : "hover:bg-slate-50"}`}
+                >
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ${conversation.type === "group" ? "bg-slate-200 text-slate-700" : "bg-red-100 text-red-800"}`} aria-hidden="true">
+                    {conversation.type === "group" ? "#" : getInitials(title)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-semibold text-slate-900">{title}</span>
+                      <time className="shrink-0 text-[10px] text-slate-400">{timestamp}</time>
+                    </span>
+                    <span className="mt-1 flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate text-xs text-slate-500">{preview}</span>
+                      {(unreadCounts[conversation.id] ?? 0) > 0 ? (
+                        <span className="shrink-0 rounded-full bg-red-700 px-2 py-0.5 text-[10px] font-semibold text-white">{unreadCounts[conversation.id]}</span>
+                      ) : null}
+                    </span>
+                    <span className="mt-1 block text-[10px] text-slate-400">
+                      {conversation.type === "group" ? `Grupo · ${summary?.active_member_count ?? 0} participantes` : "Conversa individual"}
+                    </span>
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
       </aside>
@@ -791,7 +868,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
         <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div>
             <h2 className="font-semibold text-slate-900">
-              {selectedConversation?.title ?? (selectedConversation ? "Conversa individual" : "Selecione uma conversa")}
+              {selectedConversation ? selectedConversationTitle : "Selecione uma conversa"}
             </h2>
             <p className="mt-1 text-xs text-slate-500">
               Sincronização: {selectedConversationId ? (realtimeStatus === "subscribed" ? "conectada" : realtimeStatus) : "desconectada"}
