@@ -387,6 +387,21 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
     };
   }, [supabase, selectedConversationId, userId, conversations, markMessagesRead, refreshUnreadCounts, refreshConversationSummaries]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("conversation-list-realtime")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages"
+      }, () => {
+        void refreshConversationSummaries();
+        void refreshUnreadCounts();
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [supabase, refreshConversationSummaries, refreshUnreadCounts]);
+
   useEffect(() => { void Promise.resolve().then(refreshUnreadCounts); }, [refreshUnreadCounts, selectedConversationId]);
 
   useEffect(() => {
