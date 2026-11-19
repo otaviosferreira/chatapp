@@ -43,6 +43,9 @@
 | DB-SEC-01 | Nenhuma função do schema `private` executável por `anon` | Aprovado | Consulta `has_function_privilege('anon', ...)` após migração `20261119011619` retornou `false` para todas as funções auditadas. |
 | DB-SEC-02 | Funções auxiliares RLS necessárias disponíveis a `authenticated` | Aprovado | Consulta de privilégios confirmou `EXECUTE` para `can_manage_conversation`, `can_view_profile`, `has_role`, `is_active_profile`, `is_active_user` e `is_conversation_member`. |
 | DB-SEC-03 | Funções de trigger sem execução direta por usuários | Aprovado | `audit_group_member_removal`, `audit_message_insert`, `enforce_conversation_member_limit`, `handle_new_auth_user`, `touch_updated_at` e `validate_direct_conversation_insert` retornaram `false` para `authenticated` e `anon`. |
+| DB-SEC-04 | Nenhum privilégio SQL de tabela/sequência para `anon` | Aprovado | Após migração `20261119011810`, `has_table_privilege` retornou `false` para SELECT/INSERT/UPDATE/DELETE em todas as tabelas públicas. |
+| DB-SEC-05 | Papel `authenticated` sem privilégios de manutenção | Aprovado | `TRUNCATE`, `TRIGGER` e `MAINTAIN` retornaram `false` em todas as tabelas públicas. |
+| DB-FUNC-01 | Leitura do perfil pelo papel autenticado | Aprovado | A auditoria identificou falta de SELECT em `public.profiles`, necessária ao login e diretório; migração `20261119011824` concedeu SELECT mantendo RLS. |
 
 Essas verificações de privilégios não substituem testes de RLS com identidades reais independentes. Os 20 cenários funcionais abaixo continuam pendentes até execução autenticada reproduzível.
 
