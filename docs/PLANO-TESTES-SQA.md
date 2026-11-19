@@ -49,6 +49,9 @@
 
 Essas verificações de privilégios não substituem testes de RLS com identidades reais independentes. Os 20 cenários funcionais abaixo continuam pendentes até execução autenticada reproduzível.
 
+| DB-SEC-06 | Novas funções SQL sem execução automática por anon/authenticated | Aprovado | ACL padrão de funções do schema public não contém grants para anon ou authenticated após migração `20261119011915`. |
+| DB-SEC-07 | Helper de auditoria não pode ser invocado diretamente por authenticated | Aprovado | `has_function_privilege('authenticated', 'private.log_conversation_event(text,uuid,jsonb)', 'EXECUTE')` retornou `false` após migração `20261119011943`. |
+
 ## Evidências a coletar
 Para cada caso executado:
 1. Identificador da conta sintética e papel atribuído (não registrar senhas/tokens).
