@@ -67,3 +67,49 @@ Para cada caso executado:
 - Anexos permanecem em quarentena até existir scanner antimalware real; não testar download como funcionalidade liberada.
 - Notificações implementadas são do navegador, não notificações push server-side.
 - CI valida lint, typecheck e build; não substitui estes testes de integração/E2E.
+
+
+## Pacote final — novos cenários e evidências (2026-11-19)
+
+### Casos adicionados
+
+| ID | Tipo | Cenário | Resultado esperado | Status |
+|---|---|---|---|---|
+| SQA-21 | Funcional/Performance | Pesquisar funcionário, grupo e mensagem pela busca global | Resultados agrupados, termo destacado e consulta com debounce | Automatizado na CI; UI manual pendente |
+| SQA-22 | Segurança/IDOR | Usuário não participante pesquisa mensagem/grupo privado | Nenhum resultado privado é retornado | Aprovado em transação SQL com dados sintéticos |
+| SQA-23 | Funcional/Segurança | Consultar auditoria e registros com filtros e paginação | Filtros aplicados no servidor; detalhes disponíveis apenas a perfis autorizados | RPC validado; UI manual pendente |
+| SQA-24 | Segurança/Funcional | Funcionário tenta consultar configurações e logs administrativos | Operação negada pelo banco | Aprovado em transação SQL |
+| SQA-25 | Funcional/Regressão | TI altera habilitação e limite de criação de grupos | RPC de criação aplica as configurações persistidas | Aprovado em transação SQL |
+| SQA-26 | Funcional/Usabilidade | Lista de conversas recebe mensagem em outra conversa | Prévia, remetente, horário e contador são atualizados | Implementado; teste visual manual pendente |
+| SQA-27 | Segurança/Arquivo | Enviar arquivo fora do formato, acima de 5 MB ou com assinatura incompatível | Upload recusado antes do registro do anexo | Validação de frontend e banco coberta por testes automatizados; upload real pendente |
+| SQA-28 | Segurança/IDOR | Membro tenta acessar status de anexo de conversa alheia | Acesso negado; caminho de objeto pendente não é exposto | Aprovado em transação SQL |
+| SQA-29 | Segurança/Arquivo | Usuário tenta baixar anexo pendente/rejeitado | Storage não permite leitura; apenas status é apresentado | Política SELECT verificada; teste de download real pendente |
+| SQA-30 | Auditoria/Segurança | TI exclui anexo | Objeto do Storage removido antes dos metadados; motivo obrigatório e evento auditado | Função transacional validada; exclusão real de objeto pendente |
+| SQA-31 | Responsividade | Abrir busca, conversas e painel administrativo em mobile/tablet/desktop | Layout adapta colunas, filtros e navegação | Breakpoints verificados automaticamente; inspeção visual manual pendente |
+
+### Validações de banco executadas
+
+| ID | Verificação | Resultado | Evidência |
+|---|---|---|---|
+| DB-GLOB-01 | Busca global de mensagem dentro de grupo do qual o usuário participa | Aprovado | Fixture transacional retornou 1 resultado ao membro. |
+| DB-GLOB-02 | Busca global da mesma mensagem por usuário não participante | Aprovado | Fixture transacional retornou 0 resultados ao não membro. |
+| DB-ADM-01 | Acesso administrativo a configurações, auditoria e registros | Aprovado | RPCs executados com perfil IT Admin. |
+| DB-ADM-02 | Funcionário sem papel administrativo consulta configurações | Aprovado | RPC negado com código 42501/forbidden. |
+| DB-ADM-03 | Alteração de configurações gera eventos de auditoria e logs | Aprovado | Atualização executada em transação revertida; eventos consultados pelos RPCs administrativos. |
+| DB-ADM-04 | Habilitação e limite máximo de grupos aplicados no RPC de criação | Aprovado | Criação permitida com configuração habilitada e bloqueada quando desabilitada; transações revertidas. |
+| DB-CHAT-01 | Resumo de conversa retorna última mensagem, remetente e status do anexo | Aprovado | Fixture transacional retornou grupo, mensagem e status pending. |
+| DB-CHAT-02 | Resumo de conversa não é retornado a usuário não membro | Aprovado | Consulta autenticada do não participante retornou 0 linhas. |
+| DB-ATT-01 | Anexo pendente retorna status sem expor caminho de Storage | Aprovado | RPC retornou pending e object_path nulo. |
+| DB-ATT-02 | Não participante tenta registrar ou consultar anexo | Aprovado | RPCs negaram acesso por ausência de associação ativa. |
+| DB-ATT-03 | Exclusão administrativa exige justificativa e marca a mensagem como removida | Aprovado | Função validada em transação revertida; mensagem ficou com marcador [Anexo removido pela TI]. |
+| DB-ATT-04 | Leitura de objeto no Storage | Aprovado por inspeção de policy | Policy SELECT permite apenas bucket chat-attachments, anexo com scan_status='clean' e membro da conversa. |
+| DB-SEC-08 | Funções privilegiadas de criação não ficam como SECURITY DEFINER no schema público | Aprovado | Writers movidos para private; RPCs públicos usam wrappers SECURITY INVOKER. |
+| CI-02 | Pipeline completa da branch | Aprovado | GitHub Actions CI #303: testes automatizados, lint, typecheck e build de produção concluídos com sucesso. |
+
+### Limitações que continuam abertas
+
+- Não existe scanner antimalware real integrado. Arquivos permanecem em chat-quarantine com status pending; a ação de liberação administrativa fica desabilitada. Não marcar como resolvido.
+- O upload/download real via navegador e a exclusão física de objeto ainda precisam de teste manual autenticado no preview.
+- Testes de comunicação entre duas ou mais contas independentes ainda dependem de contas de teste adicionais.
+- A inspeção visual real em dispositivos/viewports ainda precisa ser executada; os breakpoints e estados responsivos foram verificados no código e na CI.
+- O alerta Supabase auth_leaked_password_protection permanece aberto por decisão de manter o plano Free, com medidas compensatórias e documentação.
