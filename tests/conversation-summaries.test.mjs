@@ -30,3 +30,8 @@ test("conversation list displays preview, sender, smart date and quarantine stat
   assert.match(workspace, /visibleConversations\.map/);
   assert.match(workspace, /last_message_created_at/);
 });
+
+test("chat workspace keeps a mobile-first layout with desktop conversation columns", () => {
+  assert.match(workspace, /grid-cols-1[\s\S]*?lg:grid-cols-\[350px_minmax\(0,1fr\)\]/);
+  assert.match(workspace, /max-h-\[min\(70vh,520px\)\]/);
+});
