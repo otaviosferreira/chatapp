@@ -13,7 +13,7 @@ export function AdminWorkspace({currentUserId}:{currentUserId:string}) {
  const [notice,setNotice]=useState<string|null>(null);
  const [inviteName,setInviteName]=useState("");
  const [inviteEmail,setInviteEmail]=useState("");
- const [inviteBusy,setInviteBusy]=useState(false);
+ const [inviteBusy,setInviteBusy]=useState(false);\n const [pendingStatus,setPendingStatus]=useState<{id:string;status:"active"|"disabled"}|null>(null);
  const load=useCallback(async()=>{
   const [p,r]=await Promise.all([
    supabase.from("profiles").select("id,full_name,corporate_email,employee_code,status,disabled_at").order("full_name"),
@@ -70,12 +70,26 @@ export function AdminWorkspace({currentUserId}:{currentUserId:string}) {
   <div className="overflow-hidden rounded-xl border bg-white"><div className="border-b p-4"><h2 className="font-semibold">Contas e permissões</h2><p className="text-sm text-slate-500">{profiles.length} perfis</p></div><div className="divide-y">
    {profiles.map(p=>{const assigned=roles[p.id]??[];const self=p.id===currentUserId;return <article key={p.id} className="space-y-3 p-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-medium">{p.full_name}</h3><p className="text-xs text-slate-500">{p.employee_code?"Matrícula: "+p.employee_code+" · ":""}{p.status}</p><p className="text-xs text-slate-600">{p.corporate_email}</p><p className="text-xs text-slate-600">Papéis: {assigned.join(", ")||"nenhum"}</p></div>
-     {p.status==="pending_invitation"?<button disabled={inviteBusy} onClick={()=>void resendInvite(p.id)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50">{inviteBusy?"Enviando...":"Reenviar e-mail"}</button>:null}{p.status==="disabled"?<button disabled={self||busy===p.id} onClick={()=>void statusChange(p.id,"active")} className="rounded border border-green-200 px-3 py-2 text-xs text-green-800 disabled:opacity-40">Reativar</button>:<button disabled={self||busy===p.id} onClick={()=>void statusChange(p.id,"disabled")} className="rounded border border-red-200 px-3 py-2 text-xs text-red-700 disabled:opacity-40">Desativar</button>}
+     {p.status==="pending_invitation"?<button disabled={inviteBusy} onClick={()=>void resendInvite(p.id)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50">{inviteBusy?"Enviando...":"Reenviar e-mail"}</button>:null}{p.status==="disabled"?<button disabled={self||busy===p.id} onClick={()=>setPendingStatus({id:p.id,status:"active"})} className="rounded border border-green-200 px-3 py-2 text-xs text-green-800 disabled:opacity-40">Reativar</button>:<button disabled={self||busy===p.id} onClick={()=>setPendingStatus({id:p.id,status:"disabled"})} className="rounded border border-red-200 px-3 py-2 text-xs text-red-700 disabled:opacity-40">Desativar</button>}
     </div>
     <div className="flex flex-wrap gap-2">{(["employee","it_admin","security_admin"] as const).map(code=>{const granted=assigned.includes(code);return <button key={code} disabled={self||p.status!=="active"||busy===p.id} onClick={()=>void roleChange(p.id,code,!granted)} className={"rounded-full border px-3 py-1.5 text-xs disabled:opacity-40 "+(granted?"border-blue-200 bg-blue-50 text-blue-800":"border-slate-200 text-slate-600")}>{granted?"Remover ":"Conceder "}{code}</button>;})}</div>
     {self?<p className="text-xs text-slate-400">Sua conta administrativa</p>:null}
    </article>;})}
    {profiles.length===0?<p className="p-6 text-sm text-slate-500">Nenhum perfil encontrado.</p>:null}
   </div></div>
+  {pendingStatus?(
+   <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+    <section role="dialog" aria-modal="true" aria-labelledby="status-confirm-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+     <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-red-50 font-bold text-red-700" aria-hidden="true">!</div>
+     <h2 id="status-confirm-title" className="text-lg font-bold text-slate-900">{pendingStatus.status==="disabled"?"Confirmar desativação":"Confirmar reativação"}</h2>
+     <p className="mt-2 text-sm leading-6 text-slate-600">Você está prestes a {pendingStatus.status==="disabled"?"desativar":"reativar"} o acesso de <strong>{profiles.find(p=>p.id===pendingStatus.id)?.full_name??"este funcionário"}</strong>. {pendingStatus.status==="disabled"?"O acesso será bloqueado; mensagens e arquivos existentes permanecem preservados conforme as regras de retenção.":"O funcionário voltará a acessar os recursos autorizados ao seu perfil."}</p>
+     <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">A ação será registrada na auditoria com a justificativa informada acima.</p>
+     <div className="mt-6 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+      <button type="button" onClick={()=>setPendingStatus(null)} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button>
+      <button type="button" disabled={busy!==null||reason.trim().length<8} onClick={()=>{const action=pendingStatus;setPendingStatus(null);void statusChange(action.id,action.status);}} className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Confirmar ação</button>
+     </div>
+    </section>
+   </div>
+  ):null}
  </section>;
 }
