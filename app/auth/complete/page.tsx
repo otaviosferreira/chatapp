@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AuthCompletePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [message, setMessage] = useState("Confirmando seu acesso com segurança...");
 
   useEffect(() => {
     let active = true;
     async function completeAuth() {
-      const nextParam = searchParams.get("next") ?? "/update-password";
+      const queryParams = new URLSearchParams(window.location.search);
+      const nextParam = queryParams.get("next") ?? "/update-password";
       const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/update-password";
       const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
       const accessToken = fragment.get("access_token");
@@ -30,9 +30,9 @@ export default function AuthCompletePage() {
         return;
       }
 
-      const code = searchParams.get("code");
-      const tokenHash = searchParams.get("token_hash");
-      const type = searchParams.get("type");
+      const code = queryParams.get("code");
+      const tokenHash = queryParams.get("token_hash");
+      const type = queryParams.get("type");
       if (code || tokenHash) {
         const query = new URLSearchParams();
         if (code) query.set("code", code);
@@ -47,7 +47,7 @@ export default function AuthCompletePage() {
     }
     void completeAuth();
     return () => { active = false; };
-  }, [router, searchParams]);
+  }, [router]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
