@@ -416,6 +416,22 @@ export type Database = {
           created_at: string
         }[]
       }
+      admin_get_settings: {
+        Args: Record<PropertyKey, never>
+        Returns: { setting_key: string; setting_value: Json; description: string; updated_at: string }[]
+      }
+      admin_update_settings: {
+        Args: { _settings: Json }
+        Returns: undefined
+      }
+      admin_search_audit_logs: {
+        Args: { _from?: string | null; _to?: string | null; _actor?: string | null; _action?: string | null; _page?: number; _page_size?: number }
+        Returns: { id: string; actor_profile_id: string | null; actor_name: string; action: string; resource_type: string; resource_id: string | null; reason: string | null; metadata: Json; occurred_at: string; total_count: number }[]
+      }
+      admin_search_activity_logs: {
+        Args: { _from?: string | null; _to?: string | null; _actor?: string | null; _event?: string | null; _outcome?: string | null; _page?: number; _page_size?: number }
+        Returns: { id: string; source: string; actor_profile_id: string | null; actor_name: string; event_type: string; outcome: string; target_profile_id: string | null; target_name: string | null; reason: string | null; metadata: Json; occurred_at: string; total_count: number }[]
+      }
       admin_set_profile_status: {
         Args: {
           _profile_id: string
