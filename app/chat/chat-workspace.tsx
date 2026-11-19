@@ -37,7 +37,7 @@ function formatConversationTime(value: string | null) {
 }
 
 function getInitials(value: string) {
-  return value.trim().split(/\\s+/).slice(0, 2).map((part) => part[0] ?? "").join("").toLocaleUpperCase("pt-BR") || "C";
+  return value.trim().split(/\s+/).slice(0, 2).map((part) => part[0] ?? "").join("").toLocaleUpperCase("pt-BR") || "C";
 }
 
 type ChatWorkspaceProps = {
