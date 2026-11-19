@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Json, Tables } from "@/lib/supabase/database.types";
 
 type Profile = Pick<Tables<"profiles">, "id" | "full_name" | "corporate_email" | "employee_code" | "status" | "disabled_at">;
-type Tab = "employees" | "audit" | "logs" | "settings";
+type Tab = "employees" | "audit" | "logs" | "settings" | "attachments";
 type AuditRow = {
   id: string; actor_profile_id: string | null; actor_name: string; action: string;
   resource_type: string; resource_id: string | null; reason: string | null;
@@ -17,6 +17,7 @@ type ActivityRow = {
   target_name: string | null; reason: string | null; metadata: Json;
   occurred_at: string; total_count: number;
 };
+type AttachmentRow = { id: string; conversation_id: string; message_id: string; uploader_id: string; uploader_name: string; original_name: string; mime_type: string; size_bytes: number; scan_status: string; bucket: string; object_path: string; created_at: string; total_count: number };
 type SettingsForm = {
   company_name: string;
   support_email: string;
@@ -93,6 +94,13 @@ export function AdminWorkspace({ currentUserId }: { currentUserId: string }) {
   const [settings, setSettings] = useState<SettingsForm>(DEFAULT_SETTINGS);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [attachmentRows, setAttachmentRows] = useState<AttachmentRow[]>([]);
+  const [attachmentPage, setAttachmentPage] = useState(1);
+  const [attachmentTotal, setAttachmentTotal] = useState(0);
+  const [attachmentStatusFilter, setAttachmentStatusFilter] = useState("pending");
+  const [attachmentLoading, setAttachmentLoading] = useState(false);
+  const [pendingAttachmentDelete, setPendingAttachmentDelete] = useState<AttachmentRow | null>(null);
+  const [attachmentDeleteBusy, setAttachmentDeleteBusy] = useState(false);
 
   const loadProfiles = useCallback(async () => {
     const [profilesResult, rolesResult] = await Promise.all([
@@ -157,6 +165,24 @@ export function AdminWorkspace({ currentUserId }: { currentUserId: string }) {
     setActivityLoading(false);
   }, [supabase, fromDate, toDate, actorFilter, eventFilter, outcomeFilter, activityPage]);
 
+  const loadAttachments = useCallback(async () => {
+    setAttachmentLoading(true);
+    const { data, error: queryError } = await supabase.rpc("admin_list_attachments", {
+      _status: attachmentStatusFilter === "all" ? null : attachmentStatusFilter,
+      _page: attachmentPage,
+      _page_size: PAGE_SIZE
+    });
+    if (queryError) {
+      setError("Não foi possível carregar a fila de anexos.");
+      setAttachmentRows([]);
+      setAttachmentTotal(0);
+    } else {
+      setAttachmentRows((data ?? []) as AttachmentRow[]);
+      setAttachmentTotal(data?.[0]?.total_count ?? 0);
+    }
+    setAttachmentLoading(false);
+  }, [supabase, attachmentStatusFilter, attachmentPage]);
+
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true);
     const { data, error: queryError } = await supabase.rpc("admin_get_settings");
@@ -192,6 +218,12 @@ export function AdminWorkspace({ currentUserId }: { currentUserId: string }) {
     const timer = window.setTimeout(() => { void loadActivity(); }, 250);
     return () => window.clearTimeout(timer);
   }, [tab, loadActivity]);
+
+  useEffect(() => {
+    if (tab !== "attachments") return;
+    const timer = window.setTimeout(() => { void loadAttachments(); }, 200);
+    return () => window.clearTimeout(timer);
+  }, [tab, loadAttachments]);
 
   useEffect(() => {
     if (tab === "settings") void Promise.resolve().then(loadSettings);
@@ -283,6 +315,33 @@ export function AdminWorkspace({ currentUserId }: { currentUserId: string }) {
     setInviteBusy(false);
   }
 
+  async function deleteAttachment() {
+    if (!pendingAttachmentDelete || reason.trim().length < 8 || attachmentDeleteBusy) return;
+    setAttachmentDeleteBusy(true);
+    setError(null);
+    setNotice(null);
+    const attachment = pendingAttachmentDelete;
+    const { error: storageError } = await supabase.storage.from(attachment.bucket).remove([attachment.object_path]);
+    if (storageError) {
+      setError("Não foi possível remover o objeto do Storage. O registro foi preservado.");
+      setAttachmentDeleteBusy(false);
+      return;
+    }
+    const { error: deleteError } = await supabase.rpc("admin_delete_attachment", {
+      _attachment_id: attachment.id,
+      _reason: reason.trim()
+    });
+    if (deleteError) {
+      setError("O arquivo foi removido do Storage, mas o registro não foi excluído. Tente novamente para concluir a limpeza.");
+    } else {
+      setNotice("Anexo excluído definitivamente e ação registrada na auditoria.");
+      setReason("");
+      setPendingAttachmentDelete(null);
+      await loadAttachments();
+    }
+    setAttachmentDeleteBusy(false);
+  }
+
   async function saveSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSettingsSaving(true);
@@ -311,7 +370,8 @@ export function AdminWorkspace({ currentUserId }: { currentUserId: string }) {
     { id: "employees", label: "Funcionários" },
     { id: "audit", label: "Auditoria" },
     { id: "logs", label: "Registros" },
-    { id: "settings", label: "Configurações" }
+    { id: "settings", label: "Configurações" },
+    { id: "attachments", label: "Anexos" }
   ];
 
   return (
@@ -469,6 +529,51 @@ export function AdminWorkspace({ currentUserId }: { currentUserId: string }) {
         </section>
       ) : null}
 
+      {tab === "attachments" ? (
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 p-4">
+            <div><h2 className="font-semibold text-slate-900">Quarentena de anexos</h2><p className="mt-1 text-sm text-slate-500">Arquivos pendentes e bloqueados não podem ser visualizados ou baixados por usuários comuns.</p></div>
+            <label className="text-xs font-semibold text-slate-600">Status
+              <select value={attachmentStatusFilter} onChange={(event) => { setAttachmentStatusFilter(event.target.value); setAttachmentPage(1); }} className="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+                <option value="pending">Em análise</option><option value="rejected">Bloqueados</option><option value="clean">Liberados</option><option value="all">Todos</option>
+              </select>
+            </label>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {attachmentLoading ? <p className="p-6 text-sm text-slate-500">Carregando anexos...</p> : attachmentRows.map((attachment) => (
+              <article key={attachment.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <p className="break-all text-sm font-semibold text-slate-900">{attachment.original_name}</p>
+                  <p className="mt-1 text-xs text-slate-500">{attachment.uploader_name} · {attachment.mime_type} · {(attachment.size_bytes / 1024 / 1024).toFixed(2)} MB</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatDate(attachment.created_at)} · {attachment.bucket}</p>
+                  <p className="mt-2 text-xs font-semibold">{attachment.scan_status === "pending" ? "⏳ Em análise — quarentena" : attachment.scan_status === "clean" ? "✓ Liberado após verificação" : "⛔ Bloqueado"}</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button type="button" disabled title="A liberação depende de um scanner antimalware real, ainda não configurado." className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-400 disabled:cursor-not-allowed">Liberar (scanner pendente)</button>
+                  <button type="button" onClick={() => setPendingAttachmentDelete(attachment)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 hover:bg-red-100">Excluir definitivamente</button>
+                </div>
+              </article>
+            ))}
+            {!attachmentLoading && attachmentRows.length === 0 ? <p className="p-6 text-sm text-slate-500">Nenhum anexo encontrado para este filtro.</p> : null}
+          </div>
+          <Pagination page={attachmentPage} total={attachmentTotal} onPage={setAttachmentPage} />
+        </section>
+      ) : null}
+
+      {pendingAttachmentDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <section role="dialog" aria-modal="true" aria-labelledby="attachment-delete-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 id="attachment-delete-title" className="text-lg font-bold text-slate-900">Excluir anexo definitivamente?</h2>
+            <p className="mt-2 break-all text-sm text-slate-600">{pendingAttachmentDelete.original_name}</p>
+            <p className="mt-2 text-sm text-slate-600">O objeto será removido do Storage e o registro será excluído, com trilha de auditoria.</p>
+            <label className="mt-4 block text-sm font-semibold text-slate-700">Justificativa obrigatória<input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder="Informe o motivo (mínimo 8 caracteres)" className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal" /></label>
+            <div className="mt-6 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+              <button type="button" disabled={attachmentDeleteBusy} onClick={() => setPendingAttachmentDelete(null)} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button>
+              <button type="button" disabled={attachmentDeleteBusy || reason.trim().length < 8} onClick={() => void deleteAttachment()} className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{attachmentDeleteBusy ? "Excluindo..." : "Confirmar exclusão"}</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       {pendingStatus ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
           <section role="dialog" aria-modal="true" aria-labelledby="status-confirm-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
