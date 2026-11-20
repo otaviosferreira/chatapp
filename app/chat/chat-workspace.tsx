@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef, type ChangeEvent, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/supabase/database.types";
 
@@ -62,6 +62,7 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   const [newGroupMemberId, setNewGroupMemberId] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const [creating, setCreating] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [updatingMembers, setUpdatingMembers] = useState(false);
@@ -598,33 +599,59 @@ export function ChatWorkspace({ userId, userName }: ChatWorkspaceProps) {
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.trim();
-    if (!body || !selectedConversationId || sending) return;
+    const conversationId = selectedConversationId;
+    if (!body || !conversationId || sendingRef.current) return;
 
+    sendingRef.current = true;
     setSending(true);
     setErrorMessage(null);
 
-    const { data, error } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: selectedConversationId,
-        sender_id: userId,
-        client_message_id: crypto.randomUUID(),
-        body
-      })
-      .select("id,conversation_id,sender_id,client_message_id,body,reply_to_id,created_at")
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: userId,
+          client_message_id: crypto.randomUUID(),
+          body
+        })
+        .select("id,conversation_id,sender_id,client_message_id,body,reply_to_id,created_at")
+        .single();
 
-    if (error) {
-      setErrorMessage("A mensagem não foi enviada. Verifique sua participação na conversa e tente novamente.");
-    } else {
+      if (error) {
+        console.error("ChatApp message send failed", {
+          code: error.code,
+          message: error.message,
+          hint: error.hint
+        });
+        if (error.code === "42501") {
+          setErrorMessage("Você não tem autorização para enviar mensagens nesta conversa. Confirme se ainda participa dela.");
+        } else if (error.code === "42P17") {
+          setErrorMessage("O banco encontrou um problema na regra de segurança do envio. A equipe técnica foi informada.");
+        } else if (error.code === "23514" || error.code === "22023") {
+          setErrorMessage("A mensagem não atende às regras de validação. Revise o texto e tente novamente.");
+        } else if (error.code === "23505") {
+          setErrorMessage("Esta mensagem já foi registrada. Atualize a conversa para conferir o histórico.");
+        } else {
+          setErrorMessage("Não foi possível enviar a mensagem devido a uma falha de comunicação. O texto foi mantido para nova tentativa.");
+        }
+        return;
+      }
+
       setMessages((current) =>
-        current.some((item) => item.id === data.id) ? current : [...current, data]
+        current.some((item) => item.id === data.id)
+          ? current
+          : [...current, data].sort((a, b) => a.created_at.localeCompare(b.created_at))
       );
       void refreshConversationSummaries();
-      setDraft("");
+      setDraft((current) => current === body ? "" : current);
+    } catch (sendError) {
+      console.error("ChatApp message send request failed", sendError);
+      setErrorMessage("Não foi possível concluir o envio. Verifique sua conexão; o texto foi mantido para nova tentativa.");
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
     }
-
-    setSending(false);
   }
 
   async function createDirectConversation(event: FormEvent<HTMLFormElement>) {
