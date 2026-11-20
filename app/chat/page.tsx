@@ -47,7 +47,8 @@ export default async function ChatPage() {
             </span>
           </Link>
           <nav aria-label="Navegação principal" className="flex shrink-0 items-center gap-2 sm:gap-4">
-            <span className="hidden rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-[10px] font-bold tracking-wider text-red-800 md:inline-flex">AMBIENTE AUDITADO</span>\n            {adminRole ? (
+            <span className="hidden rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-[10px] font-bold tracking-wider text-red-800 md:inline-flex">AMBIENTE AUDITADO</span>
+            {adminRole ? (
               <Link href="/admin" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-blue-800">
                 Administração
               </Link>
