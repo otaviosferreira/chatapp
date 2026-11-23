@@ -45,7 +45,17 @@ export async function forgotPasswordAction(formData: FormData) {
   }
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-  if (error) redirect("/forgot-password?error=send");
+  if (error) {
+    // Supabase's built-in SMTP has a project-wide hourly limit. Keep the
+    // response generic about account existence, but explain operational limits.
+    if (error.code === "over_email_send_rate_limit" || error.status === 429) {
+      redirect("/forgot-password?error=rate_limit");
+    }
+    if (error.code === "email_address_not_authorized") {
+      redirect("/forgot-password?error=provider_restriction");
+    }
+    redirect("/forgot-password?error=send");
+  }
   redirect("/forgot-password?sent=1");
 }
 
